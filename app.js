@@ -175,103 +175,85 @@ async function callGeminiAPI(prompt) {
 function generateMockMenu(prompt) {
     console.log('🎭 Генерируем Mock меню...');
     
-    const mockMenu = {
-        "menu": {
-            "Понедельник": {
-                "Завтрак": {
-                    "name": "Овсяная каша с фруктами",
-                    "ingredients": [
-                        {"name": "Овсяные хлопья", "amount": "100г", "price": 45},
-                        {"name": "Молоко", "amount": "200мл", "price": 35},
-                        {"name": "Банан", "amount": "1шт", "price": 25},
-                        {"name": "Мед", "amount": "1ч.л.", "price": 15}
-                    ]
-                },
-                "Обед": {
-                    "name": "Куриный суп с овощами",
-                    "ingredients": [
-                        {"name": "Куриная грудка", "amount": "150г", "price": 120},
-                        {"name": "Картофель", "amount": "2шт", "price": 20},
-                        {"name": "Морковь", "amount": "1шт", "price": 15},
-                        {"name": "Лук", "amount": "1шт", "price": 10},
-                        {"name": "Зелень", "amount": "по вкусу", "price": 25}
-                    ]
-                },
-                "Ужин": {
-                    "name": "Греческий салат",
-                    "ingredients": [
-                        {"name": "Огурцы", "amount": "2шт", "price": 30},
-                        {"name": "Помидоры", "amount": "2шт", "price": 40},
-                        {"name": "Сыр фета", "amount": "50г", "price": 80},
-                        {"name": "Оливки", "amount": "10шт", "price": 45},
-                        {"name": "Оливковое масло", "amount": "2ст.л.", "price": 20}
-                    ]
-                }
-            },
-            "Вторник": {
-                "Завтрак": {
-                    "name": "Творожная запеканка",
-                    "ingredients": [
-                        {"name": "Творог", "amount": "200г", "price": 60},
-                        {"name": "Яйца", "amount": "2шт", "price": 30},
-                        {"name": "Сахар", "amount": "2ст.л.", "price": 10},
-                        {"name": "Сметана", "amount": "2ст.л.", "price": 20}
-                    ]
-                },
-                "Обед": {
-                    "name": "Паста с томатным соусом",
-                    "ingredients": [
-                        {"name": "Паста", "amount": "100г", "price": 40},
-                        {"name": "Томатная паста", "amount": "2ст.л.", "price": 25},
-                        {"name": "Чеснок", "amount": "2зубчика", "price": 10},
-                        {"name": "Базилик", "amount": "по вкусу", "price": 30}
-                    ]
-                },
-                "Ужин": {
-                    "name": "Рыба на пару с овощами",
-                    "ingredients": [
-                        {"name": "Филе трески", "amount": "150г", "price": 180},
-                        {"name": "Брокколи", "amount": "100г", "price": 50},
-                        {"name": "Цукини", "amount": "1шт", "price": 35},
-                        {"name": "Лимон", "amount": "1/2шт", "price": 20}
-                    ]
-                }
-            },
-            "Среда": {
-                "Завтрак": {
-                    "name": "Смузи с ягодами",
-                    "ingredients": [
-                        {"name": "Клубника", "amount": "100г", "price": 80},
-                        {"name": "Малина", "amount": "50г", "price": 60},
-                        {"name": "Йогурт", "amount": "150мл", "price": 45},
-                        {"name": "Мед", "amount": "1ч.л.", "price": 15}
-                    ]
-                },
-                "Обед": {
-                    "name": "Салат Цезарь",
-                    "ingredients": [
-                        {"name": "Куриная грудка", "amount": "100г", "price": 80},
-                        {"name": "Салат Айсберг", "amount": "1/2шт", "price": 40},
-                        {"name": "Сухарики", "amount": "2ст.л.", "price": 15},
-                        {"name": "Пармезан", "amount": "30г", "price": 90},
-                        {"name": "Соус Цезарь", "amount": "2ст.л.", "price": 35}
-                    ]
-                },
-                "Ужин": {
-                    "name": "Овощное рагу",
-                    "ingredients": [
-                        {"name": "Картофель", "amount": "3шт", "price": 30},
-                        {"name": "Морковь", "amount": "2шт", "price": 30},
-                        {"name": "Лук", "amount": "1шт", "price": 10},
-                        {"name": "Чеснок", "amount": "3зубчика", "price": 15},
-                        {"name": "Растительное масло", "amount": "2ст.л.", "price": 10}
-                    ]
-                }
-            }
+    // Создаем правильный формат для парсинга
+    const mockMenuData = [
+        {
+            day: "Понедельник",
+            meal: "Завтрак",
+            recipe: "Овсяная каша с фруктами",
+            ingredients: [
+                { name: "Овсяные хлопья", qty: 100, unit: "г" },
+                { name: "Молоко", qty: 200, unit: "мл" },
+                { name: "Банан", qty: 1, unit: "шт" },
+                { name: "Мед", qty: 1, unit: "ч.л." }
+            ],
+            cookingTime: 15
+        },
+        {
+            day: "Понедельник",
+            meal: "Обед",
+            recipe: "Куриный суп с овощами",
+            ingredients: [
+                { name: "Куриная грудка", qty: 150, unit: "г" },
+                { name: "Картофель", qty: 2, unit: "шт" },
+                { name: "Морковь", qty: 1, unit: "шт" },
+                { name: "Лук", qty: 1, unit: "шт" },
+                { name: "Зелень", qty: 1, unit: "пучок" }
+            ],
+            cookingTime: 45
+        },
+        {
+            day: "Понедельник",
+            meal: "Ужин",
+            recipe: "Греческий салат",
+            ingredients: [
+                { name: "Огурцы", qty: 2, unit: "шт" },
+                { name: "Помидоры", qty: 2, unit: "шт" },
+                { name: "Сыр фета", qty: 50, unit: "г" },
+                { name: "Оливки", qty: 10, unit: "шт" },
+                { name: "Оливковое масло", qty: 2, unit: "ст.л." }
+            ],
+            cookingTime: 10
+        },
+        {
+            day: "Вторник",
+            meal: "Завтрак",
+            recipe: "Творожная запеканка",
+            ingredients: [
+                { name: "Творог", qty: 200, unit: "г" },
+                { name: "Яйца", qty: 2, unit: "шт" },
+                { name: "Сахар", qty: 2, unit: "ст.л." },
+                { name: "Сметана", qty: 2, unit: "ст.л." }
+            ],
+            cookingTime: 30
+        },
+        {
+            day: "Вторник",
+            meal: "Обед",
+            recipe: "Паста с томатным соусом",
+            ingredients: [
+                { name: "Паста", qty: 100, unit: "г" },
+                { name: "Томатная паста", qty: 2, unit: "ст.л." },
+                { name: "Чеснок", qty: 2, unit: "зубчика" },
+                { name: "Базилик", qty: 1, unit: "пучок" }
+            ],
+            cookingTime: 20
+        },
+        {
+            day: "Вторник",
+            meal: "Ужин",
+            recipe: "Рыба на пару с овощами",
+            ingredients: [
+                { name: "Филе трески", qty: 150, unit: "г" },
+                { name: "Брокколи", qty: 100, unit: "г" },
+                { name: "Цукини", qty: 1, unit: "шт" },
+                { name: "Лимон", qty: 0.5, unit: "шт" }
+            ],
+            cookingTime: 25
         }
-    };
+    ];
     
-    return JSON.stringify(mockMenu, null, 2);
+    return JSON.stringify(mockMenuData, null, 2);
 }
 
 // Состояние приложения
@@ -925,10 +907,17 @@ function clearAllUserData() {
 
 // Сохранение данных пользователя
 async function saveUserData() {
-    if (!currentUser) return;
+    console.log('💾 Начинаем сохранение данных пользователя...');
+    console.log('👤 Текущий пользователь:', currentUser);
+    
+    if (!currentUser) {
+        console.log('❌ Нет текущего пользователя, пропускаем сохранение');
+        return;
+    }
     
     try {
-        if (supabaseClient) {
+        if (supabaseClient && supabaseClient.initialized) {
+            console.log('🗄️ Сохраняем в Supabase...');
             // Сохраняем в Supabase
             await supabaseClient.updateUserData(currentUser.id, {
                 available_ingredients: availableIngredients,
@@ -940,15 +929,34 @@ async function saveUserData() {
             
             console.log('✅ Данные сохранены в Supabase');
         } else {
+            console.log('💾 Сохраняем в localStorage...');
             // Fallback на localStorage
             const userKey = `user_${currentUser.id}`;
+            
+            console.log('📦 Сохраняем купленные продукты:', boughtProducts.length, 'шт');
             localStorage.setItem(`${userKey}_boughtProducts`, JSON.stringify(boughtProducts));
+            
+            console.log('🥄 Сохраняем доступные ингредиенты:', availableIngredients.length, 'шт');
             localStorage.setItem(`${userKey}_availableIngredients`, JSON.stringify(availableIngredients));
+            
+            console.log('🍽️ Сохраняем меню:', menus.length, 'шт');
             localStorage.setItem(`${userKey}_menus`, JSON.stringify(menus));
+            
+            console.log('🛒 Сохраняем текущие продукты:', currentProducts.length, 'шт');
             localStorage.setItem(`${userKey}_currentProducts`, JSON.stringify(currentProducts));
+            
+            // Сохраняем общие данные
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            localStorage.setItem('menus', JSON.stringify(menus));
+            localStorage.setItem('boughtProducts', JSON.stringify(boughtProducts));
+            localStorage.setItem('availableIngredients', JSON.stringify(availableIngredients));
+            localStorage.setItem('currentProducts', JSON.stringify(currentProducts));
+            
+            console.log('✅ Все данные сохранены в localStorage');
+            console.log('🔍 Проверьте в Developer Tools → Application → Local Storage');
         }
     } catch (error) {
-        console.error('Ошибка сохранения данных:', error);
+        console.error('❌ Ошибка сохранения данных:', error);
         showMessage('Ошибка сохранения данных', 'error');
     }
 }
