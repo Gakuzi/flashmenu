@@ -39,4 +39,7 @@ github-token.txt
 
 # Временные данные
 temp/
-tmp/ 
+tmp/
+
+# GitHub Actions
+!.github/workflows/ 

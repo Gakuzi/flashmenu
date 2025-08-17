@@ -1,0 +1,55 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Create config.js from secrets
+      run: |
+        cat > config.js << 'EOF'
+        // config.js - Автоматически создается GitHub Actions
+        // НЕ добавляйте этот файл в Git!
+        
+        window.SUPABASE_CONFIG = {
+          url: '${{ secrets.SUPABASE_URL }}',
+          anonKey: '${{ secrets.SUPABASE_ANON_KEY }}'
+        };
+        
+        window.GEMINI_CONFIG = {
+          apiKey: '${{ secrets.GEMINI_API_KEY }}',
+          baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+        };
+        
+        console.log('✅ Конфигурация загружена из GitHub Secrets');
+        console.log('🗄️ Supabase URL:', window.SUPABASE_CONFIG.url);
+        console.log('🔑 Supabase Key:', window.SUPABASE_CONFIG.anonKey.substring(0, 20) + '...');
+        console.log('🤖 Gemini API Key:', window.GEMINI_CONFIG.apiKey.substring(0, 20) + '...');
+        EOF
+        
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v4
+      with:
+        path: . 
