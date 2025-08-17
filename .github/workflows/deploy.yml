@@ -33,6 +33,16 @@ jobs:
           baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
         };
         
+        // Дополнительные API ключи для ротации
+        window.GEMINI_API_KEY_1 = '${{ secrets.GEMINI_API_KEY_1 }}';
+        window.GEMINI_API_KEY_2 = '${{ secrets.GEMINI_API_KEY_2 }}';
+        window.GEMINI_API_KEY_3 = '${{ secrets.GEMINI_API_KEY_3 }}';
+        window.GEMINI_API_KEY_4 = '${{ secrets.GEMINI_API_KEY_4 }}';
+        window.GEMINI_API_KEY_5 = '${{ secrets.GEMINI_API_KEY_5 }}';
+        window.GEMINI_API_KEY_6 = '${{ secrets.GEMINI_API_KEY_6 }}';
+        window.GEMINI_API_KEY_7 = '${{ secrets.GEMINI_API_KEY_7 }}';
+        window.GEMINI_API_KEY_8 = '${{ secrets.GEMINI_API_KEY_8 }}';
+        
         window.SUPABASE_CONFIG = {
           url: '${{ secrets.SUPABASE_URL }}',
           anonKey: '${{ secrets.SUPABASE_ANON_KEY }}'
