@@ -24,6 +24,21 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Create config.js from secrets
+      run: |
+        cat > config.js << 'EOF'
+        // Конфигурация создается автоматически из секретов GitHub Actions
+        window.GEMINI_CONFIG = {
+          apiKey: '${{ secrets.GEMINI_API_KEY_1 }}',
+          baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
+        };
+        
+        window.SUPABASE_CONFIG = {
+          url: '${{ secrets.SUPABASE_URL }}',
+          anonKey: '${{ secrets.SUPABASE_ANON_KEY }}'
+        };
+        EOF
+      
     - name: Setup Pages
       uses: actions/configure-pages@v4
       

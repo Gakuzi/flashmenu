@@ -13,7 +13,6 @@ yarn-error.log*
 
 # Конфигурационные файлы с API ключами
 config.js
-api-keys.js
 
 # Логи
 logs

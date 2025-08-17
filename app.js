@@ -1,6 +1,6 @@
-// Конфигурация API (используем из config.js или безопасного файла)
+// Конфигурация API (используем из config.js)
 const API_CONFIG = window.GEMINI_CONFIG || {
-    apiKey: window.API_KEYS?.GEMINI?.[0] || 'YOUR_API_KEY_HERE',
+    apiKey: 'YOUR_API_KEY_HERE', // Заполняется через GitHub Actions
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
 };
 
