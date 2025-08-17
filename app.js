@@ -184,12 +184,33 @@ function showApp() {
 
 // Настройка обработчиков событий
 function setupEventListeners() {
-    // Авторизация
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
-    document.getElementById('showRegister').addEventListener('click', showRegisterForm);
-    document.getElementById('showForgotPassword').addEventListener('click', showForgotPasswordForm);
-    document.getElementById('backToLogin').addEventListener('click', showLoginForm);
-    document.getElementById('resetPasswordBtn').addEventListener('click', handleResetPassword);
+    console.log('⚙️ Настраиваем обработчики событий...');
+    
+    // Авторизация - добавляем обработчики для элементов, которые уже есть в HTML
+    const loginForm = document.getElementById('loginForm');
+    const showRegister = document.getElementById('showRegister');
+    const showForgotPassword = document.getElementById('showForgotPassword');
+    
+    if (loginForm) {
+        console.log('✅ Добавляем обработчик для loginForm');
+        loginForm.addEventListener('submit', handleLogin);
+    } else {
+        console.log('❌ loginForm не найден');
+    }
+    
+    if (showRegister) {
+        console.log('✅ Добавляем обработчик для showRegister');
+        showRegister.addEventListener('click', showRegisterForm);
+    } else {
+        console.log('❌ showRegister не найден');
+    }
+    
+    if (showForgotPassword) {
+        console.log('✅ Добавляем обработчик для showForgotPassword');
+        showForgotPassword.addEventListener('click', showForgotPasswordForm);
+    } else {
+        console.log('❌ showForgotPassword не найден');
+    }
     
     // Навигация
     document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -197,15 +218,31 @@ function setupEventListeners() {
     });
     
     // Форма генерации меню
-    document.getElementById('menuForm').addEventListener('submit', generateMenu);
+    const menuForm = document.getElementById('menuForm');
+    if (menuForm) {
+        menuForm.addEventListener('submit', generateMenu);
+    }
     
     // Выход
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+    
+    console.log('✅ Обработчики событий настроены');
 }
 
 // Показать форму регистрации
 function showRegisterForm() {
+    console.log('🔐 Показываем форму регистрации...');
     const authCard = document.querySelector('.auth-card');
+    console.log('authCard:', authCard);
+    
+    if (!authCard) {
+        console.error('❌ authCard не найден!');
+        return;
+    }
+    
     authCard.innerHTML = `
         <div class="logo">
             <i class="fas fa-utensils"></i>
@@ -244,7 +281,15 @@ function showRegisterForm() {
 
 // Показать форму входа
 function showLoginForm() {
+    console.log('🔑 Показываем форму входа...');
     const authCard = document.querySelector('.auth-card');
+    console.log('authCard:', authCard);
+    
+    if (!authCard) {
+        console.error('❌ authCard не найден!');
+        return;
+    }
+    
     authCard.innerHTML = `
         <div class="logo">
             <i class="fas fa-utensils"></i>
@@ -282,7 +327,15 @@ function showLoginForm() {
 
 // Показать форму восстановления пароля
 function showForgotPasswordForm() {
+    console.log('📧 Показываем форму восстановления пароля...');
     const authCard = document.querySelector('.auth-card');
+    console.log('authCard:', authCard);
+    
+    if (!authCard) {
+        console.error('❌ authCard не найден!');
+        return;
+    }
+    
     authCard.innerHTML = `
         <div class="logo">
             <i class="fas fa-utensils"></i>
