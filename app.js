@@ -6,32 +6,26 @@ const API_CONFIG = window.GEMINI_CONFIG || {
 
 // Проверяем правильность API ключа
 console.log('=== API Key Verification ===');
-console.log('Original key: AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs');
-console.log('Encrypted key: ' + API_CONFIG.encryptedKey);
-console.log('Decrypted key: ' + atob(API_CONFIG.encryptedKey));
-console.log('Keys match: ' + (atob(API_CONFIG.encryptedKey) === 'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs'));
+console.log('Config loaded:', !!window.GEMINI_CONFIG);
+console.log('API Key from config:', API_CONFIG.apiKey);
+console.log('API Key length:', API_CONFIG.apiKey ? API_CONFIG.apiKey.length : 0);
+console.log('Expected key:', 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
+console.log('Keys match:', API_CONFIG.apiKey === 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
 console.log('==========================');
 
 // Функция для получения API ключа
 function getApiKey() {
     try {
-        // Используем новый API ключ из конфигурации
+        // Используем API ключ из конфигурации
         if (API_CONFIG.apiKey) {
-            console.log('API Key loaded from config');
+            console.log('✅ API Key загружен из конфигурации');
             return API_CONFIG.apiKey;
         }
         
-        // Fallback на старый зашифрованный ключ
-        if (API_CONFIG.encryptedKey) {
-            const decryptedKey = atob(API_CONFIG.encryptedKey);
-            console.log('API Key decrypted from encrypted key');
-            return decryptedKey;
-        }
-        
-        console.error('API ключ не найден в конфигурации');
+        console.error('❌ API ключ не найден в конфигурации');
         return null;
     } catch (error) {
-        console.error('Ошибка получения API ключа:', error);
+        console.error('❌ Ошибка получения API ключа:', error);
         return null;
     }
 }
