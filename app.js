@@ -50,32 +50,58 @@ let supabaseClient = null;
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('🚀 Flash Menu загружается...');
+    console.log('📁 Текущая директория:', window.location.href);
+    console.log('🔧 Доступные скрипты:', document.querySelectorAll('script').length);
+    console.log('📋 Скрипты:', Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline'));
+    
     // Инициализируем Supabase
-    await initSupabase();
+    console.log('🗄️ Инициализируем Supabase...');
+    const supabaseResult = await initSupabase();
+    console.log('📊 Результат инициализации Supabase:', supabaseResult);
     
     // Тестируем API ключ
     testApiKey();
     
     // Очищаем поврежденные данные (если не используем Supabase)
     if (!supabaseClient) {
+        console.log('🧹 Очищаем поврежденные данные localStorage...');
         clearCorruptedData();
     }
     
-    checkAuth();
+    console.log('🔐 Проверяем авторизацию...');
+    await checkAuth();
+    
+    console.log('⚙️ Настраиваем обработчики событий...');
     setupEventListeners();
+    
+    console.log('✅ Flash Menu загружен');
+    console.log('🎯 Готов к работе!');
 });
 
 // Инициализация Supabase
 async function initSupabase() {
-    if (window.SUPABASE_CONFIG) {
+    console.log('🚀 Начинаем инициализацию Supabase...');
+    console.log('SUPABASE_CONFIG:', window.SUPABASE_CONFIG);
+    
+    if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url && window.SUPABASE_CONFIG.anonKey) {
         try {
-            console.log('🚀 Инициализация Supabase...');
+            console.log('🔧 Создаем SupabaseClient...');
+            console.log('SupabaseClient доступен:', typeof SupabaseClient);
+            console.log('SupabaseClient:', SupabaseClient);
+            
+            if (typeof SupabaseClient !== 'function') {
+                throw new Error('SupabaseClient не загружен');
+            }
+            
             supabaseClient = new SupabaseClient(
                 window.SUPABASE_CONFIG.url,
                 window.SUPABASE_CONFIG.anonKey
             );
             
+            console.log('🔌 Подключаемся к Supabase...');
             const isConnected = await supabaseClient.init();
+            
             if (isConnected) {
                 console.log('✅ Supabase подключен успешно');
                 await supabaseClient.createTables();
@@ -86,6 +112,10 @@ async function initSupabase() {
         } catch (error) {
             console.error('❌ Ошибка инициализации Supabase:', error);
         }
+    } else {
+        console.log('⚠️ SUPABASE_CONFIG не найден или неполный');
+        console.log('URL:', window.SUPABASE_CONFIG?.url);
+        console.log('Key:', window.SUPABASE_CONFIG?.anonKey ? 'Есть' : 'Нет');
     }
     
     console.log('⚠️ Supabase не настроен, используем localStorage');
@@ -312,9 +342,16 @@ async function handleResetPassword() {
 async function handleRegister(e) {
     e.preventDefault();
     
+    console.log('🔐 Начинаем регистрацию...');
+    console.log('supabaseClient:', supabaseClient);
+    
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    console.log('📧 Email:', email);
+    console.log('🔑 Пароль:', password ? '***' : 'пустой');
+    console.log('🔑 Подтверждение:', confirmPassword ? '***' : 'пустой');
     
     if (password !== confirmPassword) {
         showMessage('Пароли не совпадают', 'error');
@@ -322,14 +359,17 @@ async function handleRegister(e) {
     }
     
     try {
-        if (supabaseClient) {
+        if (supabaseClient && supabaseClient.initialized) {
+            console.log('🚀 Регистрация через Supabase...');
             // Регистрация через Supabase
             const user = await supabaseClient.registerUser(email, password);
+            console.log('✅ Пользователь создан:', user);
             currentUser = user;
             showApp();
             await loadUserData();
             showMessage('Аккаунт успешно создан!', 'success');
         } else {
+            console.log('💾 Fallback на localStorage...');
             // Fallback на localStorage
             const users = JSON.parse(localStorage.getItem('users') || '[]');
             if (users.find(user => user.email === email)) {
@@ -351,7 +391,7 @@ async function handleRegister(e) {
             setTimeout(() => showLoginForm(), 2000);
         }
     } catch (error) {
-        console.error('Ошибка регистрации:', error);
+        console.error('❌ Ошибка регистрации:', error);
         showMessage(`Ошибка регистрации: ${error.message}`, 'error');
     }
 }
