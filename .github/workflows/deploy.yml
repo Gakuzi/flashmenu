@@ -49,7 +49,25 @@ jobs:
         console.log('🤖 Gemini API Key:', window.GEMINI_CONFIG.apiKey.substring(0, 20) + '...');
         EOF
         
+    - name: Build and prepare files
+      run: |
+        # Создаем директорию для артефактов
+        mkdir -p dist
+        
+        # Копируем все файлы в dist
+        cp -r * dist/
+        
+        # Убеждаемся, что config.js создан
+        ls -la dist/
+        cat dist/config.js
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: github-pages
+        path: dist/
+        
     - name: Deploy to GitHub Pages
       uses: actions/deploy-pages@v4
       with:
-        path: . 
+        path: dist/ 
