@@ -24,7 +24,7 @@ app.post('/api/gemini', async (req, res) => {
         }
 
         // Используем API ключ из переменных окружения или конфигурации
-        const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4';
+        const apiKey = process.env.GEMINI_API_KEY || '[ВАШ_API_КЛЮЧ]';
         const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
         console.log('🤖 Gemini API запрос:', prompt.substring(0, 100) + '...');

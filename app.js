@@ -9,8 +9,8 @@ console.log('=== API Key Verification ===');
 console.log('Config loaded:', !!window.GEMINI_CONFIG);
 console.log('API Key from config:', API_CONFIG.apiKey);
 console.log('API Key length:', API_CONFIG.apiKey ? API_CONFIG.apiKey.length : 0);
-console.log('Expected key:', 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
-console.log('Keys match:', API_CONFIG.apiKey === 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
+console.log('Expected key:', '[ВАШ_API_КЛЮЧ]');
+console.log('Keys match:', API_CONFIG.apiKey === '[ВАШ_API_КЛЮЧ]');
 console.log('==========================');
 
 // Функция для получения API ключа
@@ -130,8 +130,8 @@ function testApiKey() {
     console.log('API Key from config:', API_CONFIG.apiKey);
     console.log('Current API key:', apiKey);
     console.log('Key length:', apiKey ? apiKey.length : 0);
-    console.log('New key expected:', 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
-    console.log('Keys match:', apiKey === 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
+    console.log('New key expected:', '[ВАШ_API_КЛЮЧ]');
+console.log('Keys match:', apiKey === '[ВАШ_API_КЛЮЧ]');
     console.log('===================');
 }
 

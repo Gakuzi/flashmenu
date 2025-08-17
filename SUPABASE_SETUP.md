@@ -68,7 +68,7 @@ window.SUPABASE_CONFIG = {
 
 window.GEMINI_CONFIG = {
     // Ваш API ключ Gemini
-    apiKey: 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4',
+    apiKey: '[ВАШ_API_КЛЮЧ]',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
 };
 

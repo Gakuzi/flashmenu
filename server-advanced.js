@@ -33,8 +33,8 @@ const loadApiKeys = () => {
     if (keys.length === 0) {
         console.warn('⚠️ API ключи не найдены в переменных окружения, используем резервные');
         keys.push(
-            'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4', // Основной ключ
-            'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs'  // Альтернативный ключ
+            '[ВАШ_ПЕРВЫЙ_API_КЛЮЧ]', // Основной ключ
+'[ВАШ_ВТОРОЙ_API_КЛЮЧ]'  // Альтернативный ключ
         );
     }
     

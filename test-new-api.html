@@ -145,7 +145,7 @@
                     Длина: ${keyLength} символов
                     Начало: ${keyStart}...
                     Конец: ...${keyEnd}
-                    Формат: ${key.startsWith('AIzaSy') ? 'Правильный' : 'Неправильный'}
+                    Формат: ${key.startsWith('[ВАШ_API_КЛЮЧ]') ? 'Правильный' : 'Неправильный'}
                 `);
             } else {
                 addResult('❌ API ключ не найден', 'GEMINI_CONFIG.apiKey не определен');
