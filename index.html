@@ -740,6 +740,24 @@
             
             <div class="auth-switch">
                 Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a>
+                <br>
+                <a href="#" id="showForgotPassword">Забыли пароль?</a>
+            </div>
+        </div>
+        
+        <!-- Форма восстановления пароля -->
+        <div id="forgotPasswordForm" class="auth-form" style="display: none;">
+            <h3>Восстановление пароля</h3>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" id="forgotPasswordEmail" required>
+            </div>
+            <button type="button" class="btn btn-primary btn-large" id="resetPasswordBtn">
+                <i class="fas fa-envelope"></i>
+                Отправить инструкции
+            </button>
+            <div class="auth-switch">
+                <a href="#" id="backToLogin">Вернуться к входу</a>
             </div>
         </div>
     </div>
@@ -864,11 +882,11 @@
         </div>
     </div>
 
-            <!-- Конфигурация -->
-    <script src="config.js"></script>
+            <!-- Supabase Client -->
+    <script src="supabase-client.js"></script>
     
-    <!-- GitHub Database -->
-    <script src="github-db.js"></script>
+    <!-- Конфигурация -->
+    <script src="config.js"></script>
     
     <!-- Основное приложение -->
     <script src="app.js"></script>

@@ -45,17 +45,52 @@ let availableIngredients = [];
 let menus = [];
 let activeTimer = null;
 
+// Инициализация Supabase
+let supabaseClient = null;
+
 // Инициализация
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Инициализируем Supabase
+    await initSupabase();
+    
     // Тестируем API ключ
     testApiKey();
     
-    // Очищаем поврежденные данные
-    clearCorruptedData();
+    // Очищаем поврежденные данные (если не используем Supabase)
+    if (!supabaseClient) {
+        clearCorruptedData();
+    }
     
     checkAuth();
     setupEventListeners();
 });
+
+// Инициализация Supabase
+async function initSupabase() {
+    if (window.SUPABASE_CONFIG) {
+        try {
+            console.log('🚀 Инициализация Supabase...');
+            supabaseClient = new SupabaseClient(
+                window.SUPABASE_CONFIG.url,
+                window.SUPABASE_CONFIG.anonKey
+            );
+            
+            const isConnected = await supabaseClient.init();
+            if (isConnected) {
+                console.log('✅ Supabase подключен успешно');
+                await supabaseClient.createTables();
+                return true;
+            } else {
+                console.error('❌ Не удалось подключиться к Supabase');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка инициализации Supabase:', error);
+        }
+    }
+    
+    console.log('⚠️ Supabase не настроен, используем localStorage');
+    return false;
+}
 
 // Тестирование API ключа
 function testApiKey() {
@@ -71,7 +106,23 @@ function testApiKey() {
 }
 
 // Проверка авторизации
-function checkAuth() {
+async function checkAuth() {
+    if (supabaseClient) {
+        try {
+            // Проверяем текущего пользователя в Supabase
+            const user = await supabaseClient.getCurrentUser();
+            if (user) {
+                currentUser = user;
+                showApp();
+                await loadUserData();
+                return;
+            }
+        } catch (error) {
+            console.error('Ошибка проверки авторизации Supabase:', error);
+        }
+    }
+    
+    // Fallback на localStorage
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -106,6 +157,9 @@ function setupEventListeners() {
     // Авторизация
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
     document.getElementById('showRegister').addEventListener('click', showRegisterForm);
+    document.getElementById('showForgotPassword').addEventListener('click', showForgotPasswordForm);
+    document.getElementById('backToLogin').addEventListener('click', showLoginForm);
+    document.getElementById('resetPasswordBtn').addEventListener('click', handleResetPassword);
     
     // Навигация
     document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -185,16 +239,77 @@ function showLoginForm() {
         
         <div class="auth-switch">
             Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a>
+            <br>
+            <a href="#" id="showForgotPassword">Забыли пароль?</a>
         </div>
     `;
     
     // Добавить обработчики
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
     document.getElementById('showRegister').addEventListener('click', showRegisterForm);
+    document.getElementById('showForgotPassword').addEventListener('click', showForgotPasswordForm);
+}
+
+// Показать форму восстановления пароля
+function showForgotPasswordForm() {
+    const authCard = document.querySelector('.auth-card');
+    authCard.innerHTML = `
+        <div class="logo">
+            <i class="fas fa-utensils"></i>
+        </div>
+        <h1 class="app-title">Flash Menu</h1>
+        <p class="app-subtitle">Восстановление пароля</p>
+        
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="forgotPasswordEmail" required>
+        </div>
+        <button type="button" class="btn btn-primary btn-large" id="resetPasswordBtn">
+            <i class="fas fa-envelope"></i>
+            Отправить инструкции
+        </button>
+        
+        <div class="auth-switch">
+            <a href="#" id="backToLogin">Вернуться к входу</a>
+        </div>
+    `;
+    
+    // Добавить обработчики
+    document.getElementById('resetPasswordBtn').addEventListener('click', handleResetPassword);
+    document.getElementById('backToLogin').addEventListener('click', showLoginForm);
+}
+
+// Обработка восстановления пароля
+async function handleResetPassword() {
+    const email = document.getElementById('forgotPasswordEmail').value;
+    
+    if (!email || !email.includes('@')) {
+        showMessage('Введите корректный email', 'error');
+        return;
+    }
+    
+    try {
+        if (supabaseClient) {
+            // Восстановление пароля через Supabase
+            const { error } = await supabaseClient.supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/reset-password.html'
+            });
+            
+            if (error) throw error;
+            
+            showMessage('Инструкции по восстановлению пароля отправлены на ваш email', 'success');
+            setTimeout(() => showLoginForm(), 2000);
+        } else {
+            showMessage('Восстановление пароля недоступно в режиме localStorage', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка восстановления пароля:', error);
+        showMessage(`Ошибка: ${error.message}`, 'error');
+    }
 }
 
 // Обработка регистрации
-function handleRegister(e) {
+async function handleRegister(e) {
     e.preventDefault();
     
     const email = document.getElementById('registerEmail').value;
@@ -206,51 +321,87 @@ function handleRegister(e) {
         return;
     }
     
-    // Проверить, существует ли пользователь
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    if (users.find(user => user.email === email)) {
-        showMessage('Пользователь с таким email уже существует', 'error');
-        return;
+    try {
+        if (supabaseClient) {
+            // Регистрация через Supabase
+            const user = await supabaseClient.registerUser(email, password);
+            currentUser = user;
+            showApp();
+            await loadUserData();
+            showMessage('Аккаунт успешно создан!', 'success');
+        } else {
+            // Fallback на localStorage
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            if (users.find(user => user.email === email)) {
+                showMessage('Пользователь с таким email уже существует', 'error');
+                return;
+            }
+            
+            const newUser = {
+                id: Date.now(),
+                email,
+                password: btoa(password),
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(newUser);
+            localStorage.setItem('users', JSON.stringify(users));
+            
+            showMessage('Аккаунт успешно создан! Теперь войдите в систему', 'success');
+            setTimeout(() => showLoginForm(), 2000);
+        }
+    } catch (error) {
+        console.error('Ошибка регистрации:', error);
+        showMessage(`Ошибка регистрации: ${error.message}`, 'error');
     }
-    
-    // Создать нового пользователя
-    const newUser = {
-        id: Date.now(),
-        email,
-        password: btoa(password), // Простое шифрование для демо
-        createdAt: new Date().toISOString()
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    showMessage('Аккаунт успешно создан! Теперь войдите в систему', 'success');
-    setTimeout(() => showLoginForm(), 2000);
 }
 
 // Обработка входа
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find(u => u.email === email && u.password === btoa(password));
-    
-    if (user) {
-        currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        showApp();
-        loadUserData();
-        showMessage(`Добро пожаловать, ${user.email}!`, 'success');
-    } else {
-        showMessage('Неверный email или пароль', 'error');
+    try {
+        if (supabaseClient) {
+            // Вход через Supabase
+            const user = await supabaseClient.loginUser(email, password);
+            currentUser = user;
+            showApp();
+            await loadUserData();
+            showMessage(`Добро пожаловать, ${user.email}!`, 'success');
+        } else {
+            // Fallback на localStorage
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const user = users.find(u => u.email === email && u.password === btoa(password));
+            
+            if (user) {
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                showApp();
+                loadUserData();
+                showMessage(`Добро пожаловать, ${user.email}!`, 'success');
+            } else {
+                showMessage('Неверный email или пароль', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка входа:', error);
+        showMessage(`Ошибка входа: ${error.message}`, 'error');
     }
 }
 
 // Выход из системы
-function logout() {
+async function logout() {
+    try {
+        if (supabaseClient) {
+            await supabaseClient.logoutUser();
+        }
+    } catch (error) {
+        console.error('Ошибка выхода из Supabase:', error);
+    }
+    
     currentUser = null;
     localStorage.removeItem('currentUser');
     showAuth();
@@ -258,23 +409,39 @@ function logout() {
 }
 
 // Загрузка данных пользователя
-function loadUserData() {
+async function loadUserData() {
     if (!currentUser) return;
     
-    const userKey = `user_${currentUser.id}`;
-    
-    // Безопасная загрузка данных с проверкой JSON
     try {
-        boughtProducts = safeJsonParse(localStorage.getItem(`${userKey}_boughtProducts`), []);
-        availableIngredients = safeJsonParse(localStorage.getItem(`${userKey}_availableIngredients`), [
-            "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
-        ]);
-        menus = safeJsonParse(localStorage.getItem(`${userKey}_menus`), []);
-        currentProducts = safeJsonParse(localStorage.getItem(`${userKey}_currentProducts`), []);
+        if (supabaseClient) {
+            // Загрузка данных из Supabase
+            const userData = await supabaseClient.loadUserData(currentUser.id);
+            if (userData) {
+                availableIngredients = userData.availableIngredients || [
+                    "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
+                ];
+                menus = userData.menus || [];
+                currentProducts = userData.currentProducts || [];
+                boughtProducts = userData.boughtProducts || [];
+            }
+        } else {
+            // Fallback на localStorage
+            const userKey = `user_${currentUser.id}`;
+            
+            try {
+                boughtProducts = safeJsonParse(localStorage.getItem(`${userKey}_boughtProducts`), []);
+                availableIngredients = safeJsonParse(localStorage.getItem(`${userKey}_availableIngredients`), [
+                    "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
+                ]);
+                menus = safeJsonParse(localStorage.getItem(`${userKey}_menus`), []);
+                currentProducts = safeJsonParse(localStorage.getItem(`${userKey}_currentProducts`), []);
+            } catch (error) {
+                console.error('Ошибка загрузки данных пользователя:', error);
+                resetUserData(userKey);
+            }
+        }
     } catch (error) {
-        console.error('Ошибка загрузки данных пользователя:', error);
-        // Сбрасываем данные к начальным значениям
-        resetUserData(userKey);
+        console.error('Ошибка загрузки данных:', error);
     }
     
     updateUI();
@@ -365,14 +532,33 @@ function clearAllUserData() {
 }
 
 // Сохранение данных пользователя
-function saveUserData() {
+async function saveUserData() {
     if (!currentUser) return;
     
-    const userKey = `user_${currentUser.id}`;
-    localStorage.setItem(`${userKey}_boughtProducts`, JSON.stringify(boughtProducts));
-    localStorage.setItem(`${userKey}_availableIngredients`, JSON.stringify(availableIngredients));
-    localStorage.setItem(`${userKey}_menus`, JSON.stringify(menus));
-    localStorage.setItem(`${userKey}_currentProducts`, JSON.stringify(currentProducts));
+    try {
+        if (supabaseClient) {
+            // Сохраняем в Supabase
+            await supabaseClient.updateUserData(currentUser.id, {
+                available_ingredients: availableIngredients,
+                menus: menus
+            });
+            
+            // Сохраняем продукты
+            await supabaseClient.saveProducts(currentUser.id, currentProducts);
+            
+            console.log('✅ Данные сохранены в Supabase');
+        } else {
+            // Fallback на localStorage
+            const userKey = `user_${currentUser.id}`;
+            localStorage.setItem(`${userKey}_boughtProducts`, JSON.stringify(boughtProducts));
+            localStorage.setItem(`${userKey}_availableIngredients`, JSON.stringify(availableIngredients));
+            localStorage.setItem(`${userKey}_menus`, JSON.stringify(menus));
+            localStorage.setItem(`${userKey}_currentProducts`, JSON.stringify(currentProducts));
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения данных:', error);
+        showMessage('Ошибка сохранения данных', 'error');
+    }
 }
 
 // Переключение вкладок
