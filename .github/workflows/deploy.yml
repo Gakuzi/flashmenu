@@ -2,17 +2,13 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main, development ]
-  pull_request:
     branches: [ main ]
 
-# Разрешаем workflow запускаться из других workflow
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Конфигурация для GitHub Pages
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -25,47 +21,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
       
-    - name: Create config.js from secrets
-      run: |
-        cat > config.js << EOF
-        // config.js - Автоматически создан GitHub Actions
-        // ⚠️ НЕ редактируйте вручную!
-        
-        window.SUPABASE_CONFIG = {
-            url: '${{ secrets.SUPABASE_URL || 'https://your-project.supabase.co' }}',
-            anonKey: '${{ secrets.SUPABASE_ANON_KEY || 'your-anon-key-here' }}'
-        };
-        
-        window.GEMINI_CONFIG = {
-            apiKey: '${{ secrets.GEMINI_API_KEY || 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4' }}',
-            baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
-        };
-        
-        console.log('🔧 Конфигурация загружена из GitHub Secrets');
-        EOF
-        
-    - name: Build and deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/main'
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: .
-        publish_branch: gh-pages
-        force_orphan: true
-        user_name: 'github-actions[bot]'
-        user_email: 'github-actions[bot]@users.noreply.github.com'
+        path: '.'
         
-    - name: Deploy to development branch
-      if: github.ref == 'refs/heads/development'
-      run: |
-        echo "Deploying development branch..."
-        # Здесь можно добавить логику для деплоя development ветки 
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4 
