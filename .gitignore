@@ -20,12 +20,17 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Локальные настройки
+# Локальные настройки и конфиденциальные данные
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+config.js
+secrets.js
+api-keys.js
+*.key
+*.pem
 
 # Кэш браузера
 *.cache

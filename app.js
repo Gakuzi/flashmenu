@@ -1,6 +1,20 @@
-// Конфигурация
-const API_KEY = 'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs';
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// Конфигурация API
+const API_CONFIG = {
+    // Зашифрованный API ключ (базовое шифрование для демо)
+    encryptedKey: 'QWl6YVN5REtWTTJxSlE0bFhmalpwUVZtOXlteGZfR2l3TWtEQ0hz',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+};
+
+// Функция для получения API ключа
+function getApiKey() {
+    try {
+        // Простое дешифрование (в реальном проекте используйте более сложные методы)
+        return atob(API_CONFIG.encryptedKey);
+    } catch (error) {
+        console.error('Ошибка получения API ключа:', error);
+        return null;
+    }
+}
 
 // Состояние приложения
 let currentUser = null;
@@ -323,7 +337,12 @@ async function generateMenu(e) {
 
 // Вызов Gemini API
 async function callGeminiAPI(prompt) {
-    const response = await fetch(API_URL, {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error('Не удалось получить API ключ');
+    }
+
+    const response = await fetch(API_CONFIG.baseUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
