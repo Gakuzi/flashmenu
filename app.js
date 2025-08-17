@@ -1,3 +1,39 @@
+// Состояние приложения
+let currentUser = null;
+let currentMenu = null;
+let currentProducts = [];
+let boughtProducts = [];
+let availableIngredients = [];
+let menus = [];
+let activeTimer = null;
+
+// Профиль пользователя
+let userProfile = {
+    name: '',
+    email: '',
+    age: 30,
+    weight: 70,
+    height: 170,
+    activity: 'moderate', // low, moderate, high
+    preferences: {
+        vegetarian: false,
+        vegan: false,
+        glutenFree: false,
+        lactoseFree: false,
+        spicy: false,
+        allergies: []
+    },
+    goals: {
+        weightLoss: false,
+        weightGain: false,
+        maintenance: false,
+        muscleGain: false
+    }
+};
+
+// Инициализация Supabase
+let supabaseClient = null;
+
 // Конфигурация API
 const API_CONFIG = {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
@@ -63,7 +99,7 @@ async function callGeminiAPI(prompt) {
     // Если нет ключей из секретов, используем Mock данные
     if (apiKeys.length === 0) {
         console.log('🎭 Используем Mock данные (нет API ключей из секретов)');
-        return generateMockMenu(prompt);
+        return generateMockResponse(prompt);
     }
 
     // Пробуем все ключи по очереди
@@ -98,206 +134,709 @@ async function callGeminiAPI(prompt) {
                         temperature: 0.7,
                         topK: 40,
                         topP: 0.95,
-                        maxOutputTokens: 8192,
-                    },
-                    safetySettings: [
-                        {
-                            category: "HARM_CATEGORY_HARASSMENT",
-                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                        },
-                        {
-                            category: "HARM_CATEGORY_HATE_SPEECH",
-                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                        },
-                        {
-                            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                        },
-                        {
-                            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                        }
-                    ]
+                        maxOutputTokens: 2048,
+                    }
                 })
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error(`❌ Ошибка с ключом ${currentKeyIndex + 1}:`, errorData);
-                
-                // Проверяем тип ошибки
-                const errorMessage = errorData.error?.message || '';
-                
-                if (errorMessage.includes('quota') || 
-                    errorMessage.includes('exceeded') ||
-                    errorMessage.includes('billing') ||
-                    response.status === 429) {
-                    
-                    console.log(`🔄 Ключ ${currentKeyIndex + 1} превысил лимит, пробуем следующий...`);
-                    switchToNextKey();
-                    attempt++;
-                    continue;
-                }
-                
-                if (errorMessage.includes('location') || response.status === 403) {
-                    console.log(`🔄 Ключ ${currentKeyIndex + 1} недоступен в регионе, пробуем следующий...`);
-                    switchToNextKey();
-                    attempt++;
-                    continue;
-                }
-                
-                // Другие ошибки - пробуем следующий ключ
-                console.log(`🔄 Ошибка с ключом ${currentKeyIndex + 1}, пробуем следующий...`);
-                switchToNextKey();
-                attempt++;
-                continue;
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-            console.log(`✅ Ответ получен от Gemini API с ключом ${currentKeyIndex + 1}`);
-            resetKeyIndex(); // Сбрасываем на первый ключ при успехе
-            return data.candidates[0].content.parts[0].text;
             
-        } catch (error) {
-            console.error(`❌ Ошибка сети с ключом ${currentKeyIndex + 1}:`, error.message);
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const result = data.candidates[0].content.parts[0].text;
+                console.log('✅ Успешный ответ от API');
+                return result;
+            } else {
+                throw new Error('Неверный формат ответа API');
+            }
+            
+    } catch (error) {
+            console.warn(`❌ Ошибка с ключом ${currentKeyIndex + 1}:`, error.message);
             switchToNextKey();
             attempt++;
+            
+            if (attempt >= maxAttempts) {
+                console.error('❌ Все ключи исчерпаны, используем Mock данные');
+                return generateMockResponse(prompt);
+            }
         }
     }
     
-    // Если все ключи не сработали, используем Mock
-    console.log('🔄 Все API ключи не сработали, используем Mock данные');
-    resetKeyIndex();
-    return generateMockMenu(prompt);
+    return generateMockResponse(prompt);
 }
 
-// Генерация Mock меню (работает без сервера)
-function generateMockMenu(prompt) {
-    console.log('🎭 Генерируем Mock меню...');
+// Генерация Mock ответа для демонстрации
+function generateMockResponse(prompt) {
+    console.log('🎭 Генерируем Mock ответ для:', prompt.substring(0, 100) + '...');
     
-    // Создаем правильный формат для парсинга
-    const mockMenuData = [
-        {
-            day: "Понедельник",
-            meal: "Завтрак",
-            recipe: "Овсяная каша с фруктами",
-            ingredients: [
-                { name: "Овсяные хлопья", qty: 100, unit: "г" },
-                { name: "Молоко", qty: 200, unit: "мл" },
-                { name: "Банан", qty: 1, unit: "шт" },
-                { name: "Мед", qty: 1, unit: "ч.л." }
-            ],
-            cookingTime: 15
-        },
-        {
-            day: "Понедельник",
-            meal: "Обед",
-            recipe: "Куриный суп с овощами",
-            ingredients: [
-                { name: "Куриная грудка", qty: 150, unit: "г" },
-                { name: "Картофель", qty: 2, unit: "шт" },
-                { name: "Морковь", qty: 1, unit: "шт" },
-                { name: "Лук", qty: 1, unit: "шт" },
-                { name: "Зелень", qty: 1, unit: "пучок" }
-            ],
-            cookingTime: 45
-        },
-        {
-            day: "Понедельник",
-            meal: "Ужин",
-            recipe: "Греческий салат",
-            ingredients: [
-                { name: "Огурцы", qty: 2, unit: "шт" },
-                { name: "Помидоры", qty: 2, unit: "шт" },
-                { name: "Сыр фета", qty: 50, unit: "г" },
-                { name: "Оливки", qty: 10, unit: "шт" },
-                { name: "Оливковое масло", qty: 2, unit: "ст.л." }
-            ],
-            cookingTime: 10
-        },
-        {
-            day: "Вторник",
-            meal: "Завтрак",
-            recipe: "Творожная запеканка",
-            ingredients: [
-                { name: "Творог", qty: 200, unit: "г" },
-                { name: "Яйца", qty: 2, unit: "шт" },
-                { name: "Сахар", qty: 2, unit: "ст.л." },
-                { name: "Сметана", qty: 2, unit: "ст.л." }
-            ],
-            cookingTime: 30
-        },
-        {
-            day: "Вторник",
-            meal: "Обед",
-            recipe: "Паста с томатным соусом",
-            ingredients: [
-                { name: "Паста", qty: 100, unit: "г" },
-                { name: "Томатная паста", qty: 2, unit: "ст.л." },
-                { name: "Чеснок", qty: 2, unit: "зубчика" },
-                { name: "Базилик", qty: 1, unit: "пучок" }
-            ],
-            cookingTime: 20
-        },
-        {
-            day: "Вторник",
-            meal: "Ужин",
-            recipe: "Рыба на пару с овощами",
-            ingredients: [
-                { name: "Филе трески", qty: 150, unit: "г" },
-                { name: "Брокколи", qty: 100, unit: "г" },
-                { name: "Цукини", qty: 1, unit: "шт" },
-                { name: "Лимон", qty: 0.5, unit: "шт" }
-            ],
-            cookingTime: 25
-        }
-    ];
-    
-    return JSON.stringify(mockMenuData, null, 2);
-}
-
-// Состояние приложения
-let currentUser = null;
-let currentMenu = null;
-let currentProducts = [];
-let boughtProducts = [];
-let availableIngredients = [];
-let menus = [];
-let activeTimer = null;
-
-// Инициализация Supabase
-let supabaseClient = null;
-
-// Инициализация
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Flash Menu загружается...');
-    console.log('📁 Текущая директория:', window.location.href);
-    console.log('🔧 Доступные скрипты:', document.querySelectorAll('script').length);
-    console.log('📋 Скрипты:', Array.from(document.querySelectorAll('script')).map(s => s.src || 'inline'));
-    
-    // Инициализируем Supabase
-    console.log('🗄️ Инициализируем Supabase...');
-    const supabaseResult = await initSupabase();
-    console.log('📊 Результат инициализации Supabase:', supabaseResult);
-    
-    // Тестируем API ключ
-    testApiKey();
-    
-    // Очищаем поврежденные данные (если не используем Supabase)
-    if (!supabaseClient) {
-        console.log('🧹 Очищаем поврежденные данные localStorage...');
-        clearCorruptedData();
+    if (prompt.includes('меню')) {
+        return JSON.stringify([
+            {
+                day: 1,
+                meal: "Завтрак",
+                recipe: "Овсяная каша с яблоками",
+                ingredients: [
+                    { name: "овсянка", qty: 100, unit: "г" },
+                    { name: "молоко", qty: 200, unit: "мл" },
+                    { name: "яблоко", qty: 1, unit: "шт" },
+                    { name: "мед", qty: 10, unit: "г" }
+                ],
+                cookingTime: 15
+            },
+            {
+                day: 1,
+                meal: "Обед",
+                recipe: "Куриный суп с овощами",
+                ingredients: [
+                    { name: "куриная грудка", qty: 200, unit: "г" },
+                    { name: "картофель", qty: 300, unit: "г" },
+                    { name: "морковь", qty: 100, unit: "г" },
+                    { name: "лук", qty: 50, unit: "г" }
+                ],
+                cookingTime: 45
+            }
+        ]);
+    } else if (prompt.includes('каталог') || prompt.includes('цена') || prompt.includes('продукт')) {
+        // Генерируем реалистичные данные продуктов из каталога
+        const productName = prompt.match(/"([^"]+)"/)?.[1] || "продукт";
+        const randomPrice = Math.floor(Math.random() * 500) + 50;
+        const units = ["кг", "л", "шт", "г", "мл"];
+        const unit = units[Math.floor(Math.random() * units.length)];
+        const packs = ["1 кг", "1 л", "500 г", "250 мл", "10 шт"];
+        const pack = packs[Math.floor(Math.random() * packs.length)];
+        
+        return JSON.stringify({
+            name: productName,
+            pack: pack,
+            price: randomPrice,
+            unit: unit,
+            qty: 1,
+            sum: randomPrice
+        });
     }
     
-    console.log('🔐 Проверяем авторизацию...');
-    await checkAuth();
+    return "Mock ответ";
+}
+
+// Основная функция генерации меню с правильной логикой
+async function generateMenu(e) {
+    e.preventDefault();
     
-    console.log('⚙️ Настраиваем обработчики событий...');
-    setupEventListeners();
+    const budget = parseInt(document.getElementById('budget').value);
+    const days = parseInt(document.getElementById('days').value);
+    const start = document.getElementById('start').value;
+    const meal = document.getElementById('meal').value;
+
+    if (budget < 500) {
+        showMessage('Бюджет должен быть не менее 500 ₽', 'error');
+        return;
+    }
+
+    showLoading(true);
+    showMessage('Генерация меню с учетом реальных цен...', 'success');
+
+    try {
+        console.log('🚀 Начинаем генерацию меню с учетом каталога Макси...');
+        console.log('💰 Бюджет:', budget, '₽');
+        console.log('📅 Дни:', days);
+        console.log('🍽️ Прием пищи:', meal);
+        console.log('📍 Начало:', start);
+        
+        // Шаг 1: Генерация меню с учетом реальных цен из каталога Макси
+        const menuWithPrices = await generateMenuWithRealPrices(budget, days, meal, start);
+        if (!menuWithPrices) {
+            throw new Error('Не удалось сгенерировать меню с учетом реальных цен');
+        }
+        
+        // Шаг 2: Предложение пользователю скорректировать меню
+        const adjustedMenu = await showMenuCorrectionDialog(menuWithPrices.menu, budget, days, meal, start);
+        if (!adjustedMenu) {
+            showMessage('Генерация меню отменена', 'info');
+            return;
+        }
+        
+        // Шаг 3: Обновляем цены для скорректированного меню
+        const updatedProducts = await updatePricesForMenu(adjustedMenu);
+        if (!updatedProducts) {
+            throw new Error('Не удалось обновить цены для скорректированного меню');
+        }
+        
+        // Шаг 4: Показываем список продуктов с кнопками выбора
+        const userProductChoices = await showProductsChoiceDialog(updatedProducts, budget);
+        if (!userProductChoices) {
+            showMessage('Выбор продуктов отменен', 'info');
+            return;
+        }
+        
+        // Шаг 5: Обрабатываем выбор пользователя
+        await processUserProductChoices(userProductChoices, budget, days, meal, start, adjustedMenu);
+
+    } catch (error) {
+        console.error('Ошибка генерации меню:', error);
+        showMessage(`Ошибка: ${error.message}`, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Шаг 1: Генерация меню с учетом реальных цен из каталога Макси
+async function generateMenuWithRealPrices(budget, days, meal, start) {
+    console.log('🤖 Генерируем меню с учетом реальных цен из каталога Макси...');
     
-    console.log('✅ Flash Menu загружен');
-    console.log('🎯 Готов к работе!');
-});
+    const prompt = `Ты - опытный диетолог и повар в городе Архангельск. Создай разнообразное и сбалансированное меню на ${days} дней для ${meal} с учетом бюджета ${budget} ₽.
+
+ВАЖНО: Пользователь находится в городе Архангельск и будет покупать продукты в магазине "Макси". 
+Ты должен создать меню, используя только те продукты, которые реально доступны в каталоге Макси.
+
+ТРЕБОВАНИЯ:
+- Бюджет: ${budget} ₽ на ${days} дней
+- Тип приема пищи: ${meal}
+- Начало: ${start}
+- Город: Архангельск
+- Магазин: Макси
+- Используй только продукты из каталога Макси
+- Учитывай реальные цены из каталога
+- Создавай разнообразные блюда
+- Учитывай пищевую ценность и баланс
+
+ПРОЦЕСС:
+1. Сначала найди доступные продукты в каталоге Макси
+2. Создай меню на основе реально доступных продуктов
+3. Рассчитай общую стоимость с учетом реальных цен
+4. Убедись, что общая стоимость не превышает бюджет
+
+ФОРМАТ ОТВЕТА (строго JSON):
+{
+  "menu": [
+    {
+      "day": 1,
+      "meal": "Завтрак",
+      "recipe": "Название блюда",
+      "ingredients": [
+        {
+          "name": "название продукта",
+          "qty": количество,
+          "unit": "единица измерения (г, мл, шт, кг, л)"
+        }
+      ],
+      "cookingTime": время готовки в минутах
+    }
+  ],
+  "products": [
+    {
+      "name": "точное название продукта из каталога",
+      "pack": "описание упаковки",
+      "price": реальная цена из каталога,
+      "unit": "единица измерения",
+      "qty": количество,
+      "sum": общая стоимость
+    }
+  ],
+  "totalCost": общая стоимость всех продуктов
+}
+
+Верни ТОЛЬКО JSON без дополнительного текста.`;
+
+    const response = await callGeminiAPI(prompt);
+    const result = parseJSONResponse(response);
+    
+    if (!result || !result.menu || !result.products) {
+        throw new Error('Неверный формат ответа от AI');
+    }
+    
+    console.log('✅ Меню сгенерировано с учетом реальных цен:', result.menu.length, 'блюд');
+    console.log('💰 Общая стоимость:', result.totalCost, '₽');
+    
+    return result;
+}
+
+// Шаг 3: Обновление цен для скорректированного меню
+async function updatePricesForMenu(menu) {
+    console.log('💰 Обновляем цены для скорректированного меню...');
+    
+    // Собираем все уникальные ингредиенты
+    const allIngredients = [];
+    menu.forEach(item => {
+        if (item.ingredients && Array.isArray(item.ingredients)) {
+            item.ingredients.forEach(ingredient => {
+                const existingIndex = allIngredients.findIndex(ing => 
+                    ing.name.toLowerCase() === ingredient.name.toLowerCase()
+                );
+                
+                if (existingIndex >= 0) {
+                    allIngredients[existingIndex].qty += ingredient.qty || 1;
+                } else {
+                    allIngredients.push({
+                        name: ingredient.name,
+                        qty: ingredient.qty || 1,
+                        unit: ingredient.unit || 'шт'
+                    });
+                }
+            });
+        }
+    });
+    
+    // Поиск каждого ингредиента в каталоге Макси через AI
+    const products = [];
+    
+    for (const ingredient of allIngredients) {
+        try {
+            const product = await findProductInMaxiCatalog(ingredient);
+            if (product) {
+                products.push(product);
+            }
+        } catch (error) {
+            console.warn(`⚠️ Не удалось найти ${ingredient.name} в каталоге Макси:`, error.message);
+            // Добавляем базовый продукт с предупреждением
+            const basicProduct = {
+                name: ingredient.name,
+                pack: '~',
+                price: 150,
+                qty: ingredient.qty,
+                unit: ingredient.unit,
+                sum: 150 * ingredient.qty,
+                available: false,
+                note: 'Не найден в каталоге Макси'
+            };
+            products.push(basicProduct);
+        }
+    }
+    
+    console.log('💰 Цены обновлены:', products.length, 'продуктов');
+    return products;
+}
+
+// Поиск продукта в каталоге Макси через AI
+async function findProductInMaxiCatalog(ingredient) {
+    const prompt = `Найди продукт "${ingredient.name}" в каталоге магазина "Макси" в городе Архангельск. 
+
+ТРЕБОВАНИЯ:
+- Название продукта: ${ingredient.name}
+- Нужное количество: ${ingredient.qty} ${ingredient.unit}
+- Магазин: Макси (Архангельск)
+- Ищи только в каталоге Макси
+- Учитывай разные варианты названий
+- Найди наиболее подходящий продукт
+- Укажи реальную цену из каталога
+
+ФОРМАТ ОТВЕТА (строго JSON):
+{
+  "name": "точное название продукта из каталога Макси",
+  "pack": "описание упаковки",
+  "price": реальная цена из каталога Макси,
+  "unit": "единица измерения",
+  "qty": ${ingredient.qty},
+  "sum": общая стоимость,
+  "available": true
+}
+
+Если продукт не найден в каталоге Макси, верни null.`;
+
+    const response = await callGeminiAPI(prompt);
+    const product = parseJSONResponse(response);
+    
+    if (product && product.name && product.price) {
+        console.log(`✅ Найден в Макси: ${product.name} - ${product.price} ₽`);
+        return product;
+    }
+    
+    throw new Error(`Продукт ${ingredient.name} не найден в каталоге Макси`);
+}
+
+// Шаг 4: Диалог выбора продуктов с двумя кнопками
+async function showProductsChoiceDialog(products, budget) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal active';
+        modal.innerHTML = `
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3>Выбор продуктов</h3>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Для каждого продукта выберите действие:</p>
+                    
+                    <div class="products-choice">
+                        ${products.map((product, index) => `
+                            <div class="product-choice-item" data-index="${index}">
+                                <div class="product-info">
+                                    <div class="product-name">
+                                        <strong>${product.name}</strong>
+                                        ${product.note ? `<span class="note">${product.note}</span>` : ''}
+                                    </div>
+                                    <div class="product-details">
+                                        <span>${product.qty} ${product.unit}</span>
+                                        <span class="price">${product.price} ₽</span>
+                                        <span class="total">${product.sum} ₽</span>
+                                    </div>
+                                </div>
+                                <div class="product-actions">
+                                    <button class="btn btn-success add-to-shopping" data-index="${index}">
+                                        <i class="fas fa-shopping-cart"></i>
+                                        Добавить в список покупок
+                                    </button>
+                                    <button class="btn btn-primary already-have" data-index="${index}">
+                                        <i class="fas fa-check"></i>
+                                        Уже имеется
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="budget-summary">
+                        <div class="total-cost">
+                            <strong>Общая стоимость:</strong> 
+                            <span id="totalCost">${products.reduce((sum, p) => sum + p.sum, 0)} ₽</span>
+                        </div>
+                        <div class="shopping-cost">
+                            <strong>Для покупки:</strong> 
+                            <span id="shoppingCost">0 ₽</span>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="cancelProductsChoice">Отмена</button>
+                        <button class="btn btn-primary" id="confirmProductsChoice">Продолжить</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Состояние выбора продуктов
+        const productChoices = {
+            shopping: [],
+            alreadyHave: []
+        };
+
+        // Обработчики событий
+        modal.querySelector('.close-btn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(null);
+        });
+
+        modal.querySelector('#cancelProductsChoice').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(null);
+        });
+
+        modal.querySelector('#confirmProductsChoice').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(productChoices);
+        });
+
+        // Обработка кнопок выбора
+        modal.addEventListener('click', (e) => {
+            if (e.target.classList.contains('add-to-shopping') || 
+                e.target.closest('.add-to-shopping')) {
+                const index = parseInt(e.target.dataset.index || e.target.closest('.add-to-shopping').dataset.index);
+                const product = products[index];
+                
+                // Убираем из уже имеющихся, если был там
+                productChoices.alreadyHave = productChoices.alreadyHave.filter(p => p.name !== product.name);
+                
+                // Добавляем в список покупок
+                if (!productChoices.shopping.find(p => p.name === product.name)) {
+                    productChoices.shopping.push(product);
+                }
+                
+                updateProductChoiceUI(modal, products, productChoices);
+            }
+            
+            if (e.target.classList.contains('already-have') || 
+                e.target.closest('.already-have')) {
+                const index = parseInt(e.target.dataset.index || e.target.closest('.already-have').dataset.index);
+                const product = products[index];
+                
+                // Убираем из списка покупок, если был там
+                productChoices.shopping = productChoices.shopping.filter(p => p.name !== product.name);
+                
+                // Добавляем в уже имеющиеся
+                if (!productChoices.alreadyHave.find(p => p.name === product.name)) {
+                    productChoices.alreadyHave.push(product);
+                }
+                
+                updateProductChoiceUI(modal, products, productChoices);
+            }
+        });
+    });
+}
+
+// Обновление UI выбора продуктов
+function updateProductChoiceUI(modal, products, productChoices) {
+    const totalCost = products.reduce((sum, p) => sum + p.sum, 0);
+    const shoppingCost = productChoices.shopping.reduce((sum, p) => sum + p.sum, 0);
+    
+    modal.querySelector('#totalCost').textContent = `${totalCost} ₽`;
+    modal.querySelector('#shoppingCost').textContent = `${shoppingCost} ₽`;
+    
+    // Обновляем стили кнопок
+    products.forEach((product, index) => {
+        const item = modal.querySelector(`[data-index="${index}"]`);
+        const shoppingBtn = item.querySelector('.add-to-shopping');
+        const haveBtn = item.querySelector('.already-have');
+        
+        const inShopping = productChoices.shopping.find(p => p.name === product.name);
+        const inHave = productChoices.alreadyHave.find(p => p.name === product.name);
+        
+        shoppingBtn.classList.toggle('active', inShopping);
+        haveBtn.classList.toggle('active', inHave);
+    });
+}
+
+// Шаг 5: Обработка выбора пользователя
+async function processUserProductChoices(choices, budget, days, meal, start, menu) {
+    console.log('📋 Обрабатываем выбор пользователя...');
+    
+    // Сохраняем уже имеющиеся продукты
+    availableIngredients = choices.alreadyHave.map(p => `${p.name} (${p.qty} ${p.unit})`);
+    
+    // Создаем список покупок
+    const shoppingList = choices.shopping;
+    
+    // Сохраняем данные
+    const menuId = Date.now();
+    const newMenu = {
+        id: menuId,
+        budget,
+        days,
+        meal,
+        start,
+        items: menu,
+        totalCost: shoppingList.reduce((sum, p) => sum + p.sum, 0),
+        createdAt: new Date().toISOString(),
+        status: 'shopping' // Статус: shopping, cooking, completed
+    };
+
+    menus.push(newMenu);
+    currentMenu = newMenu;
+    currentProducts = shoppingList;
+    
+    saveUserData();
+    updateMenuSelector();
+    
+    // Показываем список покупок
+    showShoppingListDialog(shoppingList, budget, menu);
+}
+
+// Показ списка покупок
+async function showShoppingListDialog(shoppingList, budget, menu) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Список покупок</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Отметьте купленные продукты. Если продукт не найден, нажмите "Найти аналог":</p>
+                
+                <div class="shopping-list">
+                    ${shoppingList.map((product, index) => `
+                        <div class="shopping-item" data-index="${index}">
+                            <div class="product-info">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" class="product-bought" data-index="${index}">
+                                    <span class="checkmark"></span>
+                                    <strong>${product.name}</strong>
+                                </label>
+                                <div class="product-details">
+                                    <span>${product.qty} ${product.unit}</span>
+                                    <span class="price">${product.price} ₽</span>
+                                    <span class="total">${product.sum} ₽</span>
+                                </div>
+                            </div>
+                            <div class="product-actions">
+                                <button class="btn btn-warning find-analog" data-index="${index}">
+                                    <i class="fas fa-search"></i>
+                                    Найти аналог
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="shopping-progress">
+                    <div class="progress-info">
+                        <strong>Куплено:</strong> 
+                        <span id="boughtCount">0</span> из <span id="totalCount">${shoppingList.length}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelShopping">Отмена</button>
+                    <button class="btn btn-primary" id="completeShopping" disabled>
+                        Разблокировать меню
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Состояние покупок
+    const boughtProducts = new Set();
+    
+    // Обработчики событий
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#cancelShopping').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#completeShopping').addEventListener('click', () => {
+        // Разблокируем меню
+        unlockMenu(menu);
+        document.body.removeChild(modal);
+        showMessage('Меню разблокировано! Теперь вы можете готовить.', 'success');
+    });
+
+    // Обработка покупок
+    modal.addEventListener('change', (e) => {
+        if (e.target.classList.contains('product-bought')) {
+            const index = parseInt(e.target.dataset.index);
+            const product = shoppingList[index];
+            
+            if (e.target.checked) {
+                boughtProducts.add(product.name);
+            } else {
+                boughtProducts.delete(product.name);
+            }
+            
+            updateShoppingProgress(modal, boughtProducts, shoppingList);
+        }
+    });
+
+    // Поиск аналогов
+    modal.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('find-analog') || 
+            e.target.closest('.find-analog')) {
+            const index = parseInt(e.target.dataset.index || e.target.closest('.find-analog').dataset.index);
+            const product = shoppingList[index];
+            
+            const analog = await findProductAnalog(product);
+            if (analog) {
+                // Заменяем продукт на аналог
+                shoppingList[index] = analog;
+                updateShoppingListUI(modal, shoppingList);
+                showMessage(`Найден аналог: ${analog.name}`, 'success');
+            } else {
+                showMessage('Аналог не найден', 'warning');
+            }
+        }
+    });
+}
+
+// Поиск аналога продукта через AI
+async function findProductAnalog(product) {
+    const prompt = `Найди аналог продукта "${product.name}" в каталоге магазина "Макси" в городе Архангельск.
+
+ТРЕБОВАНИЯ:
+- Исходный продукт: ${product.name} (${product.qty} ${product.unit})
+- Магазин: Макси (Архангельск)
+- Найди похожий продукт с аналогичными свойствами
+- Учитывай цену (не должна быть значительно выше)
+- Продукт должен быть доступен в каталоге Макси
+
+ФОРМАТ ОТВЕТА (строго JSON):
+{
+  "name": "название аналога из каталога Макси",
+  "pack": "описание упаковки",
+  "price": цена аналога,
+  "unit": "единица измерения",
+  "qty": ${product.qty},
+  "sum": общая стоимость,
+  "available": true
+}
+
+Если аналог не найден, верни null.`;
+
+    const response = await callGeminiAPI(prompt);
+    return parseJSONResponse(response);
+}
+
+// Обновление прогресса покупок
+function updateShoppingProgress(modal, boughtProducts, shoppingList) {
+    const boughtCount = boughtProducts.size;
+    const totalCount = shoppingList.length;
+    const progress = (boughtCount / totalCount) * 100;
+    
+    modal.querySelector('#boughtCount').textContent = boughtCount;
+    modal.querySelector('#totalCount').textContent = totalCount;
+    modal.querySelector('#progressFill').style.width = `${progress}%`;
+    
+    // Разблокируем кнопку если все куплено
+    const completeBtn = modal.querySelector('#completeShopping');
+    completeBtn.disabled = boughtCount < totalCount;
+}
+
+// Обновление UI списка покупок
+function updateShoppingListUI(modal, shoppingList) {
+    const shoppingListContainer = modal.querySelector('.shopping-list');
+    shoppingListContainer.innerHTML = shoppingList.map((product, index) => `
+        <div class="shopping-item" data-index="${index}">
+            <div class="product-info">
+                <label class="checkbox-container">
+                    <input type="checkbox" class="product-bought" data-index="${index}">
+                    <span class="checkmark"></span>
+                    <strong>${product.name}</strong>
+                </label>
+                <div class="product-details">
+                    <span>${product.qty} ${product.unit}</span>
+                    <span class="price">${product.price} ₽</span>
+                    <span class="total">${product.sum} ₽</span>
+                </div>
+            </div>
+            <div class="product-actions">
+                <button class="btn btn-warning find-analog" data-index="${index}">
+                    <i class="fas fa-search"></i>
+                    Найти аналог
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Разблокировка меню
+function unlockMenu(menu) {
+    currentMenu.status = 'cooking';
+    currentMenu.items = menu;
+    saveUserData();
+    updateMenuUI();
+}
+
+// Парсинг JSON ответа
+function parseJSONResponse(response) {
+    if (!response) return null;
+    
+    try {
+        // Сначала пытаемся найти JSON в коде блока
+        const codeBlockMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
+        if (codeBlockMatch) {
+            return JSON.parse(codeBlockMatch[1]);
+        }
+        
+        // Если нет кода блока, пытаемся распарсить весь ответ
+        return JSON.parse(response);
+    } catch (error) {
+        console.error('❌ Ошибка парсинга JSON:', error);
+        console.log('📄 Ответ:', response);
+        return null;
+    }
+}
 
 // Инициализация Supabase
 async function initSupabase() {
@@ -331,303 +870,225 @@ async function initSupabase() {
             if (isConnected) {
                 console.log('✅ Supabase подключен успешно');
                 await supabaseClient.createTables();
-                return true;
+                return { success: true, message: 'Supabase подключен' };
             } else {
-                console.error('❌ Не удалось подключиться к Supabase');
+                throw new Error('Не удалось подключиться к Supabase');
             }
         } catch (error) {
             console.error('❌ Ошибка инициализации Supabase:', error);
+            supabaseClient = null;
+            return { success: false, message: error.message };
         }
     } else {
-        console.log('⚠️ SUPABASE_CONFIG не настроен или содержит заглушки');
-        console.log('URL:', window.SUPABASE_CONFIG?.url);
-        console.log('Key:', window.SUPABASE_CONFIG?.anonKey ? 'Есть' : 'Нет');
+        console.log('⚠️ Конфигурация Supabase не найдена, используем localStorage');
+        supabaseClient = null;
+        return { success: false, message: 'Используем localStorage' };
     }
-    
-    console.log('⚠️ Supabase не настроен, используем localStorage');
-    return false;
-}
-
-// Тестирование API ключа
-function testApiKey() {
-    const apiKey = getCurrentApiKey();
-    console.log('=== API Key Test ===');
-    console.log('Config loaded:', !!window.GEMINI_CONFIG);
-    console.log('API Key from config:', API_CONFIG.apiKey);
-    console.log('Current API key:', apiKey);
-    console.log('Key length:', apiKey ? apiKey.length : 0);
-    console.log('New key expected:', '[ВАШ_API_КЛЮЧ]');
-console.log('Keys match:', apiKey === '[ВАШ_API_КЛЮЧ]');
-    console.log('===================');
 }
 
 // Проверка авторизации
 async function checkAuth() {
     console.log('🔐 Проверяем авторизацию...');
-    console.log('supabaseClient:', supabaseClient);
     
-    if (supabaseClient && supabaseClient.initialized) {
-        try {
-            console.log('🚀 Проверяем пользователя в Supabase...');
-            // Проверяем текущего пользователя в Supabase
-            const user = await supabaseClient.getCurrentUser();
-            if (user) {
-                console.log('✅ Пользователь найден в Supabase:', user);
-                currentUser = user;
-                showApp();
+    try {
+        if (supabaseClient && supabaseClient.initialized) {
+            // Проверяем сессию в Supabase
+            const session = await supabaseClient.getSession();
+            if (session) {
+                console.log('✅ Найдена активная сессия в Supabase');
+                currentUser = session.user;
                 await loadUserData();
+                showMainApp();
                 return;
             }
-        } catch (error) {
-            console.error('❌ Ошибка проверки авторизации Supabase:', error);
+        } else {
+            // Проверяем localStorage
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    console.log('✅ Найден пользователь в localStorage:', currentUser.email);
+                    await loadUserData();
+                    showMainApp();
+                    return;
+                } catch (error) {
+                    console.error('❌ Ошибка парсинга пользователя из localStorage:', error);
+                    localStorage.removeItem('currentUser');
+                }
+            }
         }
-    }
-    
-    // Fallback на localStorage
-    console.log('💾 Проверяем localStorage...');
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        try {
-            currentUser = JSON.parse(savedUser);
-            console.log('✅ Пользователь найден в localStorage:', currentUser);
-            showApp();
-            loadUserData();
-        } catch (error) {
-            console.error('❌ Ошибка парсинга пользователя из localStorage:', error);
-            localStorage.removeItem('currentUser');
-            showAuth();
-        }
-    } else {
-        console.log('👤 Пользователь не найден, показываем форму авторизации');
-        showAuth();
+        
+        // Показываем экран авторизации
+        showAuthScreen();
+        
+    } catch (error) {
+        console.error('❌ Ошибка проверки авторизации:', error);
+        showAuthScreen();
     }
 }
 
-// Показать экран авторизации
-function showAuth() {
-    document.getElementById('authScreen').style.display = 'flex';
-    document.getElementById('appContainer').style.display = 'none';
+// Показ экрана авторизации
+function showAuthScreen() {
+    console.log('🔐 Показываем экран авторизации...');
+    
+    const appContainer = document.querySelector('.app-container');
+    if (!appContainer) return;
+    
+    appContainer.innerHTML = `
+        <div class="auth-screen">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <h1 class="app-title">Flash Menu</h1>
+                    <p class="auth-subtitle">Умный планировщик покупок и меню</p>
+                </div>
+                
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login">Вход</button>
+                    <button class="auth-tab" data-tab="register">Регистрация</button>
+                </div>
+                
+                <!-- Форма входа -->
+                <form id="loginForm" class="auth-form active">
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Пароль</label>
+                        <input type="password" class="form-input" id="loginPassword" required>
+                    </div>
+                    <div class="form-error" id="loginError"></div>
+                    <button type="submit" class="btn btn-primary btn-large">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Войти
+                    </button>
+                </form>
+                
+                <!-- Форма регистрации -->
+                <form id="registerForm" class="auth-form">
+                    <div class="form-group">
+                        <label class="form-label">Имя</label>
+                        <input type="text" class="form-input" id="registerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Пароль</label>
+                        <input type="password" class="form-input" id="registerPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Подтвердите пароль</label>
+                        <input type="password" class="form-input" id="registerPasswordConfirm" required minlength="6">
+                    </div>
+                    <div class="form-error" id="registerError"></div>
+                    <button type="submit" class="btn btn-primary btn-large">
+                        <i class="fas fa-user-plus"></i>
+                        Зарегистрироваться
+                    </button>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    // Обработчики событий
+    setupAuthEventListeners();
 }
 
-// Показать основное приложение
-function showApp() {
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'block';
+// Настройка обработчиков авторизации
+function setupAuthEventListeners() {
+    // Переключение табов
+    const authTabs = document.querySelectorAll('.auth-tab');
+    const authForms = document.querySelectorAll('.auth-form');
     
-    // Обновить аватар пользователя
-    const userAvatar = document.getElementById('userAvatar');
-    if (currentUser) {
-        userAvatar.innerHTML = currentUser.email.charAt(0).toUpperCase();
-        userAvatar.title = currentUser.email;
-    }
-}
-
-// Настройка обработчиков событий
-function setupEventListeners() {
-    console.log('⚙️ Настраиваем обработчики событий...');
-    
-    // Авторизация - добавляем обработчики для элементов, которые уже есть в HTML
-    const loginForm = document.getElementById('loginForm');
-    const showRegister = document.getElementById('showRegister');
-    const showForgotPassword = document.getElementById('showForgotPassword');
-    
-    if (loginForm) {
-        console.log('✅ Добавляем обработчик для loginForm');
-        loginForm.addEventListener('submit', handleLogin);
-    } else {
-        console.log('❌ loginForm не найден');
-    }
-    
-    if (showRegister) {
-        console.log('✅ Добавляем обработчик для showRegister');
-        showRegister.addEventListener('click', showRegisterForm);
-    } else {
-        console.log('❌ showRegister не найден');
-    }
-    
-    if (showForgotPassword) {
-        console.log('✅ Добавляем обработчик для showForgotPassword');
-        showForgotPassword.addEventListener('click', showForgotPasswordForm);
-    } else {
-        console.log('❌ showForgotPassword не найден');
-    }
-    
-    // Навигация
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.tab;
+            
+            // Обновляем активный таб
+            authTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Показываем соответствующую форму
+            authForms.forEach(form => {
+                form.classList.remove('active');
+                if (form.id === `${targetTab}Form`) {
+                    form.classList.add('active');
+                }
+            });
+            
+            // Очищаем ошибки
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('registerError').textContent = '';
+        });
     });
     
-    // Форма генерации меню
-    const menuForm = document.getElementById('menuForm');
-    if (menuForm) {
-        menuForm.addEventListener('submit', generateMenu);
-    }
+    // Обработка входа
+    const loginForm = document.getElementById('loginForm');
+    loginForm.addEventListener('submit', handleLogin);
     
-    // Выход
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
-    }
-    
-    console.log('✅ Обработчики событий настроены');
+    // Обработка регистрации
+    const registerForm = document.getElementById('registerForm');
+    registerForm.addEventListener('submit', handleRegister);
 }
 
-// Показать форму регистрации
-function showRegisterForm() {
-    console.log('🔐 Показываем форму регистрации...');
-    const authCard = document.querySelector('.auth-card');
-    console.log('authCard:', authCard);
+// Обработка входа
+async function handleLogin(e) {
+    e.preventDefault();
     
-    if (!authCard) {
-        console.error('❌ authCard не найден!');
-        return;
-    }
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorElement = document.getElementById('loginError');
     
-    authCard.innerHTML = `
-        <div class="logo">
-            <i class="fas fa-utensils"></i>
-        </div>
-        <h1 class="app-title">Flash Menu</h1>
-        <p class="app-subtitle">Создание аккаунта</p>
-        
-        <form id="registerForm" class="auth-form">
-            <div class="form-group">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-input" id="registerEmail" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Пароль</label>
-                <input type="password" class="form-input" id="registerPassword" required minlength="6">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Подтвердите пароль</label>
-                <input type="password" class="form-input" id="confirmPassword" required minlength="6">
-            </div>
-            <button type="submit" class="btn btn-primary btn-large">
-                <i class="fas fa-user-plus"></i>
-                Зарегистрироваться
-            </button>
-        </form>
-        
-        <div class="auth-switch">
-            Уже есть аккаунт? <a href="#" id="showLogin">Войти</a>
-        </div>
-    `;
+    // Очищаем предыдущие ошибки
+    errorElement.textContent = '';
     
-    // Добавить обработчик для регистрации
-    document.getElementById('registerForm').addEventListener('submit', handleRegister);
-    document.getElementById('showLogin').addEventListener('click', showLoginForm);
-}
-
-// Показать форму входа
-function showLoginForm() {
-    console.log('🔑 Показываем форму входа...');
-    const authCard = document.querySelector('.auth-card');
-    console.log('authCard:', authCard);
-    
-    if (!authCard) {
-        console.error('❌ authCard не найден!');
-        return;
-    }
-    
-    authCard.innerHTML = `
-        <div class="logo">
-            <i class="fas fa-utensils"></i>
-        </div>
-        <h1 class="app-title">Flash Menu</h1>
-        <p class="app-subtitle">Умный планировщик покупок и меню</p>
-        
-        <form id="loginForm" class="auth-form">
-            <div class="form-group">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-input" id="loginEmail" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Пароль</label>
-                <input type="password" class="form-input" id="loginPassword" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-large">
-                <i class="fas fa-sign-in-alt"></i>
-                Войти
-            </button>
-        </form>
-        
-        <div class="auth-switch">
-            Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a>
-            <br>
-            <a href="#" id="showForgotPassword">Забыли пароль?</a>
-        </div>
-    `;
-    
-    // Добавить обработчики
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
-    document.getElementById('showRegister').addEventListener('click', showRegisterForm);
-    document.getElementById('showForgotPassword').addEventListener('click', showForgotPasswordForm);
-}
-
-// Показать форму восстановления пароля
-function showForgotPasswordForm() {
-    console.log('📧 Показываем форму восстановления пароля...');
-    const authCard = document.querySelector('.auth-card');
-    console.log('authCard:', authCard);
-    
-    if (!authCard) {
-        console.error('❌ authCard не найден!');
-        return;
-    }
-    
-    authCard.innerHTML = `
-        <div class="logo">
-            <i class="fas fa-utensils"></i>
-        </div>
-        <h1 class="app-title">Flash Menu</h1>
-        <p class="app-subtitle">Восстановление пароля</p>
-        
-        <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-input" id="forgotPasswordEmail" required>
-        </div>
-        <button type="button" class="btn btn-primary btn-large" id="resetPasswordBtn">
-            <i class="fas fa-envelope"></i>
-            Отправить инструкции
-        </button>
-        
-        <div class="auth-switch">
-            <a href="#" id="backToLogin">Вернуться к входу</a>
-        </div>
-    `;
-    
-    // Добавить обработчики
-    document.getElementById('resetPasswordBtn').addEventListener('click', handleResetPassword);
-    document.getElementById('backToLogin').addEventListener('click', showLoginForm);
-}
-
-// Обработка восстановления пароля
-async function handleResetPassword() {
-    const email = document.getElementById('forgotPasswordEmail').value;
-    
-    if (!email || !email.includes('@')) {
-        showMessage('Введите корректный email', 'error');
+    if (!email || !password) {
+        errorElement.textContent = 'Пожалуйста, заполните все поля';
         return;
     }
     
     try {
-        if (supabaseClient) {
-            // Восстановление пароля через Supabase
-            const { error } = await supabaseClient.supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + '/reset-password.html'
-            });
+        console.log('🔐 Попытка входа для:', email);
+        
+        if (supabaseClient && supabaseClient.initialized) {
+            // Вход через Supabase
+            const result = await supabaseClient.signIn(email, password);
             
-            if (error) throw error;
-            
-            showMessage('Инструкции по восстановлению пароля отправлены на ваш email', 'success');
-            setTimeout(() => showLoginForm(), 2000);
+            if (result.success) {
+                currentUser = result.user;
+                await loadUserData();
+                showMainApp();
+                showMessage('Вход выполнен успешно!', 'success');
+            } else {
+                errorElement.textContent = result.message || 'Ошибка входа';
+            }
         } else {
-            showMessage('Восстановление пароля недоступно в режиме localStorage', 'error');
+            // Вход через localStorage
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+            
+            if (!user) {
+                errorElement.textContent = 'Пользователь не найден';
+                return;
+            }
+            
+            if (user.password !== password) {
+                errorElement.textContent = 'Неверный пароль';
+                return;
+            }
+            
+            currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            await loadUserData();
+            showMainApp();
+            showMessage('Вход выполнен успешно!', 'success');
         }
+        
     } catch (error) {
-        console.error('Ошибка восстановления пароля:', error);
-        showMessage(`Ошибка: ${error.message}`, 'error');
+        console.error('❌ Ошибка входа:', error);
+        errorElement.textContent = 'Произошла ошибка при входе';
     }
 }
 
@@ -635,750 +1096,884 @@ async function handleResetPassword() {
 async function handleRegister(e) {
     e.preventDefault();
     
-    console.log('🔐 Начинаем регистрацию...');
-    console.log('supabaseClient:', supabaseClient);
-    
-    const email = document.getElementById('registerEmail').value;
+    const name = document.getElementById('registerName').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
+    const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+    const errorElement = document.getElementById('registerError');
     
-    console.log('📧 Email:', email);
-    console.log('🔑 Пароль:', password ? '***' : 'пустой');
-    console.log('🔑 Подтверждение:', confirmPassword ? '***' : 'пустой');
+    // Очищаем предыдущие ошибки
+    errorElement.textContent = '';
     
-    if (!email || !password || !confirmPassword) {
-        showMessage('Заполните все поля', 'error');
+    // Валидация
+    if (!name || !email || !password || !passwordConfirm) {
+        errorElement.textContent = 'Пожалуйста, заполните все поля';
         return;
     }
     
-    if (password !== confirmPassword) {
-        showMessage('Пароли не совпадают', 'error');
+    if (password !== passwordConfirm) {
+        errorElement.textContent = 'Пароли не совпадают';
         return;
     }
     
     if (password.length < 6) {
-        showMessage('Пароль должен быть не менее 6 символов', 'error');
+        errorElement.textContent = 'Пароль должен содержать минимум 6 символов';
+        return;
+    }
+    
+    if (!isValidEmail(email)) {
+        errorElement.textContent = 'Введите корректный email';
         return;
     }
     
     try {
+        console.log('📝 Попытка регистрации для:', email);
+        
         if (supabaseClient && supabaseClient.initialized) {
-            console.log('🚀 Регистрация через Supabase...');
             // Регистрация через Supabase
-            const user = await supabaseClient.registerUser(email, password);
-            console.log('✅ Пользователь создан:', user);
-            currentUser = user;
-            showApp();
-            await loadUserData();
-            showMessage('Аккаунт успешно создан!', 'success');
-        } else {
-            console.log('💾 Регистрация через localStorage...');
-            // Fallback на localStorage
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            console.log('👥 Существующие пользователи:', users);
+            const result = await supabaseClient.signUp(email, password, name);
             
-            if (users.find(user => user.email === email)) {
-                showMessage('Пользователь с таким email уже существует', 'error');
+            if (result.success) {
+                currentUser = result.user;
+                await loadUserData();
+                showMainApp();
+                showMessage('Регистрация выполнена успешно!', 'success');
+            } else {
+                errorElement.textContent = result.message || 'Ошибка регистрации';
+            }
+        } else {
+            // Регистрация через localStorage
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            
+            // Проверяем, не существует ли уже пользователь
+            if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+                errorElement.textContent = 'Пользователь с таким email уже существует';
                 return;
             }
             
+            // Создаем нового пользователя
             const newUser = {
-                id: Date.now(),
+                id: Date.now().toString(),
+                name,
                 email,
-                password: btoa(password),
+                password,
                 createdAt: new Date().toISOString()
             };
             
-            console.log('🆕 Новый пользователь:', newUser);
             users.push(newUser);
             localStorage.setItem('users', JSON.stringify(users));
             
-            console.log('💾 Пользователи сохранены в localStorage');
-            showMessage('Аккаунт успешно создан! Теперь войдите в систему', 'success');
-            setTimeout(() => showLoginForm(), 2000);
+            currentUser = newUser;
+            localStorage.setItem('currentUser', JSON.stringify(newUser));
+            await loadUserData();
+            showMainApp();
+            showMessage('Регистрация выполнена успешно!', 'success');
         }
+        
     } catch (error) {
         console.error('❌ Ошибка регистрации:', error);
-        showMessage(`Ошибка регистрации: ${error.message}`, 'error');
+        errorElement.textContent = 'Произошла ошибка при регистрации';
     }
 }
 
-// Обработка входа
-async function handleLogin(e) {
-    e.preventDefault();
-    
-    console.log('🔐 Обработка входа...');
-    
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    
-    console.log('📧 Email:', email);
-    console.log('🔑 Пароль:', password ? '***' : 'пустой');
-    
-    if (!email || !password) {
-        showMessage('Заполните все поля', 'error');
-        return;
-    }
-    
-    try {
-        if (supabaseClient && supabaseClient.initialized) {
-            console.log('🚀 Вход через Supabase...');
-            // Вход через Supabase
-            const user = await supabaseClient.loginUser(email, password);
-            currentUser = user;
-            showApp();
-            await loadUserData();
-            showMessage(`Добро пожаловать, ${user.email}!`, 'success');
-        } else {
-            console.log('💾 Вход через localStorage...');
-            // Fallback на localStorage
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            console.log('👥 Пользователи в localStorage:', users);
-            
-            const user = users.find(u => u.email === email && u.password === btoa(password));
-            
-            if (user) {
-                console.log('✅ Пользователь найден:', user);
-                currentUser = user;
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                showApp();
-                loadUserData();
-                showMessage(`Добро пожаловать, ${user.email}!`, 'success');
-            } else {
-                console.log('❌ Пользователь не найден');
-                showMessage('Неверный email или пароль', 'error');
-            }
-        }
-    } catch (error) {
-        console.error('❌ Ошибка входа:', error);
-        showMessage(`Ошибка входа: ${error.message}`, 'error');
-    }
+// Валидация email
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
 }
 
-// Выход из системы
-async function logout() {
-    try {
-        if (supabaseClient) {
-            await supabaseClient.logoutUser();
-        }
-    } catch (error) {
-        console.error('Ошибка выхода из Supabase:', error);
-    }
+// Показ основного приложения
+function showMainApp() {
+    console.log('🏠 Показываем основное приложение...');
     
-    currentUser = null;
-    localStorage.removeItem('currentUser');
-    showAuth();
-    showMessage('Вы вышли из системы', 'info');
-}
+    const appContainer = document.querySelector('.app-container');
+    if (!appContainer) return;
+    
+    appContainer.innerHTML = `
+        <div class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">Flash Menu</h1>
+                <div class="user-menu">
+                    <button class="user-menu-btn" id="userMenuBtn">
+                        <i class="fas fa-user-circle"></i>
+                        <span>${currentUser.name || currentUser.email}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-item" id="profileBtn">
+                            <i class="fas fa-user"></i>
+                            Личный кабинет
+                        </div>
+                        <div class="dropdown-item" id="settingsBtn">
+                            <i class="fas fa-cog"></i>
+                            Настройки
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Выйти
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-// Загрузка данных пользователя
-async function loadUserData() {
-    if (!currentUser) {
-        console.log('❌ Нет текущего пользователя для загрузки данных');
-        return;
-    }
+        <div class="app-content">
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-tab="settings">
+                    <i class="fas fa-magic"></i>
+                    Генерация меню
+                </button>
+                <button class="nav-tab" data-tab="shopping">
+                    <i class="fas fa-shopping-basket"></i>
+                    Покупки
+                </button>
+                <button class="nav-tab" data-tab="menu">
+                    <i class="fas fa-book-open"></i>
+                    Меню
+                </button>
+            </nav>
+
+            <!-- Секция настроек -->
+            <div id="settings" class="section active">
+                <div class="card">
+                    <h2 class="card-title">
+                        <i class="fas fa-magic"></i>
+                        Генерация меню
+                    </h2>
+                    <form id="menuForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Бюджет (₽)</label>
+                                <input type="number" class="form-input" id="budget" min="500" placeholder="Введите бюджет" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Срок (дни)</label>
+                                <select class="form-input" id="days" required>
+                                    <option value="1">1 день</option>
+                                    <option value="3">3 дня</option>
+                                    <option value="5">5 дней</option>
+                                    <option value="7">7 дней</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Начало</label>
+                                <select class="form-input" id="start" required>
+                                    <option value="Сегодня с ужина">Сегодня с ужина</option>
+                                    <option value="Завтра с завтрака">Завтра с завтрака</option>
+                                    <option value="Сегодня с завтрака">Сегодня с завтрака</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Приём пищи</label>
+                                <select class="form-input" id="meal" required>
+                                    <option value="Все">Все приёмы пищи</option>
+                                    <option value="Завтрак">Завтрак</option>
+                                    <option value="Обед">Обед</option>
+                                    <option value="Ужин">Ужин</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-large">
+                            <i class="fas fa-magic"></i>
+                            Сгенерировать меню
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Секция покупок -->
+            <div id="shopping" class="section">
+                <div class="card">
+                    <h2 class="card-title">
+                        <i class="fas fa-shopping-basket"></i>
+                        Список покупок
+                    </h2>
+                    <div id="shoppingContent">
+                        <p>Сначала сгенерируйте меню</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Секция меню -->
+            <div id="menu" class="section">
+                <div class="card">
+                    <h2 class="card-title">
+                        <i class="fas fa-book-open"></i>
+                        Меню
+                    </h2>
+                    <div class="menu-selector">
+                        <select class="menu-select" id="menuSelector">
+                            <option value="">Выберите меню</option>
+                        </select>
+                    </div>
+                    <div id="menuContent">
+                        <p>Сначала сгенерируйте меню</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Индикатор загрузки -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Генерация меню...</div>
+            </div>
+        </div>
+    `;
     
-    console.log('📊 Загружаем данные для пользователя:', currentUser.id);
+    // Настройка обработчиков событий
+    setupMainAppEventListeners();
     
-    try {
-        if (supabaseClient && supabaseClient.initialized) {
-            console.log('🚀 Загрузка данных из Supabase...');
-            // Загрузка данных из Supabase
-            const userData = await supabaseClient.loadUserData(currentUser.id);
-            if (userData) {
-                availableIngredients = userData.availableIngredients || [
-                    "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
-                ];
-                menus = userData.menus || [];
-                currentProducts = userData.currentProducts || [];
-                boughtProducts = userData.boughtProducts || [];
-                console.log('✅ Данные загружены из Supabase');
-            }
-        } else {
-            // Fallback на localStorage
-            const userKey = `user_${currentUser.id}`;
-            
-            try {
-                boughtProducts = safeJsonParse(localStorage.getItem(`${userKey}_boughtProducts`), []);
-                availableIngredients = safeJsonParse(localStorage.getItem(`${userKey}_availableIngredients`), [
-                    "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
-                ]);
-                menus = safeJsonParse(localStorage.getItem(`${userKey}_menus`), []);
-                currentProducts = safeJsonParse(localStorage.getItem(`${userKey}_currentProducts`), []);
-                
-                console.log('✅ Данные загружены из localStorage');
-                console.log('👥 Пользователи:', JSON.parse(localStorage.getItem('users') || '[]'));
-                console.log('🔐 Текущий пользователь:', localStorage.getItem('currentUser'));
-            } catch (error) {
-                console.error('Ошибка загрузки данных пользователя:', error);
-                resetUserData(userKey);
-            }
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-    }
-    
+    // Загружаем данные
+    loadUserData();
     updateUI();
 }
 
-// Безопасный парсинг JSON
-function safeJsonParse(jsonString, defaultValue) {
-    if (!jsonString) return defaultValue;
+// Настройка обработчиков основного приложения
+function setupMainAppEventListeners() {
+    // Переключение табов
+    const navTabs = document.querySelectorAll('.nav-tab');
+    const sections = document.querySelectorAll('.section');
     
-    try {
-        return JSON.parse(jsonString);
-    } catch (error) {
-        console.warn('Ошибка парсинга JSON, используем значение по умолчанию:', error);
-        return defaultValue;
-    }
-}
-
-// Сброс данных пользователя к начальным значениям
-function resetUserData(userKey) {
-    console.log('Сброс данных пользователя к начальным значениям');
+    navTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.tab;
+            
+            // Обновляем активный таб
+            navTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Показываем соответствующую секцию
+            sections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === targetTab) {
+                    section.classList.add('active');
+                }
+            });
+        });
+    });
     
-    boughtProducts = [];
-    availableIngredients = [
-        "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
-    ];
-    menus = [];
-    currentProducts = [];
+    // Меню пользователя
+    const userMenuBtn = document.getElementById('userMenuBtn');
+    const userDropdown = document.getElementById('userDropdown');
     
-    // Сохраняем очищенные данные
-    saveUserData();
-}
-
-// Очистка поврежденных данных в localStorage
-function clearCorruptedData() {
-    console.log('Очистка поврежденных данных в localStorage');
+    userMenuBtn.addEventListener('click', () => {
+        userDropdown.classList.toggle('active');
+    });
     
-    // Получаем все ключи localStorage
-    const keys = Object.keys(localStorage);
-    
-    // Ищем ключи, связанные с пользователями
-    const userKeys = keys.filter(key => key.startsWith('user_'));
-    
-    userKeys.forEach(key => {
-        try {
-            // Пытаемся распарсить данные
-            const data = localStorage.getItem(key);
-            if (data) {
-                JSON.parse(data);
-            }
-        } catch (error) {
-            console.warn(`Поврежденные данные в ключе ${key}, удаляем`);
-            localStorage.removeItem(key);
+    // Закрытие меню при клике вне его
+    document.addEventListener('click', (e) => {
+        if (!userMenuBtn.contains(e.target) && !userDropdown.contains(e.target)) {
+            userDropdown.classList.remove('active');
         }
     });
     
-    console.log('Очистка завершена');
+    // Обработчики меню пользователя
+    document.getElementById('profileBtn').addEventListener('click', showUserProfile);
+    document.getElementById('settingsBtn').addEventListener('click', showUserSettings);
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    
+    // Форма генерации меню
+    const menuForm = document.getElementById('menuForm');
+    menuForm.addEventListener('submit', generateMenu);
 }
 
-// Очистка всех данных пользователя
-function clearAllUserData() {
-    if (!currentUser) return;
+// Показ профиля пользователя
+function showUserProfile() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Личный кабинет</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-sections">
+                    <div class="profile-section">
+                        <h4>Основная информация</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Имя</label>
+                                <input type="text" class="form-input" id="profileName" value="${userProfile.name}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-input" id="profileEmail" value="${userProfile.email}" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Возраст</label>
+                                <input type="number" class="form-input" id="profileAge" value="${userProfile.age}" min="1" max="120">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Вес (кг)</label>
+                                <input type="number" class="form-input" id="profileWeight" value="${userProfile.weight}" min="30" max="200">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Рост (см)</label>
+                                <input type="number" class="form-input" id="profileHeight" value="${userProfile.height}" min="100" max="250">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Уровень активности</label>
+                                <select class="form-input" id="profileActivity">
+                                    <option value="low" ${userProfile.activity === 'low' ? 'selected' : ''}>Низкий</option>
+                                    <option value="moderate" ${userProfile.activity === 'moderate' ? 'selected' : ''}>Средний</option>
+                                    <option value="high" ${userProfile.activity === 'high' ? 'selected' : ''}>Высокий</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-section">
+                        <h4>Пищевые предпочтения</h4>
+                        <div class="preferences-grid">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="prefVegetarian" ${userProfile.preferences.vegetarian ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Вегетарианство
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="prefVegan" ${userProfile.preferences.vegan ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Веганство
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="prefGlutenFree" ${userProfile.preferences.glutenFree ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Без глютена
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="prefLactoseFree" ${userProfile.preferences.lactoseFree ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Без лактозы
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="prefSpicy" ${userProfile.preferences.spicy ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Острая пища
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-section">
+                        <h4>Цели</h4>
+                        <div class="goals-grid">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="goalWeightLoss" ${userProfile.goals.weightLoss ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Похудение
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="goalWeightGain" ${userProfile.goals.weightGain ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Набор веса
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="goalMaintenance" ${userProfile.goals.maintenance ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Поддержание веса
+                            </label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="goalMuscleGain" ${userProfile.goals.muscleGain ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Набор мышечной массы
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelProfile">Отмена</button>
+                    <button class="btn btn-primary" id="saveProfile">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Обработчики событий
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#cancelProfile').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#saveProfile').addEventListener('click', () => {
+        saveUserProfile(modal);
+        document.body.removeChild(modal);
+        showMessage('Профиль сохранен!', 'success');
+    });
+}
+
+// Сохранение профиля пользователя
+function saveUserProfile(modal) {
+    // Основная информация
+    userProfile.name = modal.querySelector('#profileName').value;
+    userProfile.email = modal.querySelector('#profileEmail').value;
+    userProfile.age = parseInt(modal.querySelector('#profileAge').value);
+    userProfile.weight = parseFloat(modal.querySelector('#profileWeight').value);
+    userProfile.height = parseInt(modal.querySelector('#profileHeight').value);
+    userProfile.activity = modal.querySelector('#profileActivity').value;
     
-    if (confirm('Вы уверены, что хотите очистить ВСЕ данные? Это действие нельзя отменить!')) {
-        console.log('Очистка всех данных пользователя');
+    // Предпочтения
+    userProfile.preferences.vegetarian = modal.querySelector('#prefVegetarian').checked;
+    userProfile.preferences.vegan = modal.querySelector('#prefVegan').checked;
+    userProfile.preferences.glutenFree = modal.querySelector('#prefGlutenFree').checked;
+    userProfile.preferences.lactoseFree = modal.querySelector('#prefLactoseFree').checked;
+    userProfile.preferences.spicy = modal.querySelector('#prefSpicy').checked;
+    
+    // Цели
+    userProfile.goals.weightLoss = modal.querySelector('#goalWeightLoss').checked;
+    userProfile.goals.weightGain = modal.querySelector('#goalWeightGain').checked;
+    userProfile.goals.maintenance = modal.querySelector('#goalMaintenance').checked;
+    userProfile.goals.muscleGain = modal.querySelector('#goalMuscleGain').checked;
+    
+    // Сохраняем в базу
+    saveUserData();
+    
+    // Обновляем отображение имени пользователя
+    const userNameSpan = document.querySelector('.user-menu-btn span');
+    if (userNameSpan) {
+        userNameSpan.textContent = userProfile.name || currentUser.email;
+    }
+}
+
+// Показ настроек пользователя
+function showUserSettings() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Настройки</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h4>Безопасность</h4>
+                    <button class="btn btn-secondary" id="changePasswordBtn">
+                        <i class="fas fa-key"></i>
+                        Изменить пароль
+                    </button>
+                </div>
+                
+                <div class="settings-section">
+                    <h4>Данные</h4>
+                    <button class="btn btn-warning" id="clearDataBtn">
+                        <i class="fas fa-trash"></i>
+                        Очистить все данные
+                    </button>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelSettings">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Обработчики событий
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#cancelSettings').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#changePasswordBtn').addEventListener('click', () => {
+        showChangePasswordDialog();
+    });
+
+    modal.querySelector('#clearDataBtn').addEventListener('click', () => {
+        if (confirm('Вы уверены, что хотите очистить ВСЕ данные? Это действие нельзя отменить!')) {
+            clearAllUserData();
+            document.body.removeChild(modal);
+            showMessage('Все данные очищены', 'success');
+        }
+    });
+}
+
+// Диалог смены пароля
+function showChangePasswordDialog() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Изменение пароля</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Текущий пароль</label>
+                    <input type="password" class="form-input" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Новый пароль</label>
+                    <input type="password" class="form-input" id="newPassword" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Подтвердите новый пароль</label>
+                    <input type="password" class="form-input" id="confirmNewPassword" required minlength="6">
+                </div>
+                <div class="form-error" id="passwordError"></div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelPassword">Отмена</button>
+                    <button class="btn btn-primary" id="savePassword">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Обработчики событий
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#cancelPassword').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#savePassword').addEventListener('click', async () => {
+        const currentPassword = modal.querySelector('#currentPassword').value;
+        const newPassword = modal.querySelector('#newPassword').value;
+        const confirmNewPassword = modal.querySelector('#confirmNewPassword').value;
+        const errorElement = modal.querySelector('#passwordError');
         
-        const userKey = `user_${currentUser.id}`;
+        errorElement.textContent = '';
         
-        // Удаляем все данные пользователя
-        localStorage.removeItem(`${userKey}_boughtProducts`);
-        localStorage.removeItem(`${userKey}_availableIngredients`);
-        localStorage.removeItem(`${userKey}_menus`);
-        localStorage.removeItem(`${userKey}_currentProducts`);
+        // Валидация
+        if (!currentPassword || !newPassword || !confirmNewPassword) {
+            errorElement.textContent = 'Заполните все поля';
+            return;
+        }
         
-        // Сбрасываем переменные
-        boughtProducts = [];
-        availableIngredients = [
-            "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
-        ];
+        if (newPassword !== confirmNewPassword) {
+            errorElement.textContent = 'Пароли не совпадают';
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            errorElement.textContent = 'Новый пароль должен содержать минимум 6 символов';
+            return;
+        }
+        
+        try {
+            if (supabaseClient && supabaseClient.initialized) {
+                // Смена пароля через Supabase
+                const result = await supabaseClient.changePassword(currentPassword, newPassword);
+                if (result.success) {
+                    document.body.removeChild(modal);
+                    showMessage('Пароль изменен успешно!', 'success');
+                } else {
+                    errorElement.textContent = result.message || 'Ошибка смены пароля';
+                }
+            } else {
+                // Смена пароля через localStorage
+                if (currentUser.password !== currentPassword) {
+                    errorElement.textContent = 'Неверный текущий пароль';
+                    return;
+                }
+                
+                // Обновляем пароль
+                currentUser.password = newPassword;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                
+                // Обновляем в списке пользователей
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                const userIndex = users.findIndex(u => u.id === currentUser.id);
+                if (userIndex >= 0) {
+                    users[userIndex].password = newPassword;
+                    localStorage.setItem('users', JSON.stringify(users));
+                }
+                
+                document.body.removeChild(modal);
+                showMessage('Пароль изменен успешно!', 'success');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка смены пароля:', error);
+            errorElement.textContent = 'Произошла ошибка при смене пароля';
+        }
+    });
+}
+
+// Выход из системы
+function handleLogout() {
+    if (confirm('Вы уверены, что хотите выйти?')) {
+        // Очищаем текущего пользователя
+        currentUser = null;
+        localStorage.removeItem('currentUser');
+        
+        // Очищаем данные
         menus = [];
         currentProducts = [];
+        boughtProducts = [];
+        availableIngredients = [];
         
-        // Обновляем UI
-        updateShoppingUI();
-        updateMenuUI();
+        // Показываем экран авторизации
+        showAuthScreen();
+        showMessage('Вы вышли из системы', 'info');
+    }
+} 
+
+// Загрузка данных пользователя
+async function loadUserData() {
+    console.log('📂 Загружаем данные пользователя...');
+    
+    try {
+        if (supabaseClient && supabaseClient.initialized) {
+            // Загружаем данные из Supabase
+            const userData = await supabaseClient.getUserData(currentUser.id);
+            if (userData) {
+                menus = userData.menus || [];
+                currentProducts = userData.currentProducts || [];
+                boughtProducts = userData.boughtProducts || [];
+                availableIngredients = userData.availableIngredients || [];
+                userProfile = userData.userProfile || userProfile;
+            }
+        } else {
+            // Загружаем данные из localStorage
+            const userData = safeJsonParse(localStorage.getItem(`userData_${currentUser.id}`), {});
+            
+            menus = userData.menus || [];
+            currentProducts = userData.currentProducts || [];
+            boughtProducts = userData.boughtProducts || [];
+            availableIngredients = userData.availableIngredients || [];
+            userProfile = userData.userProfile || userProfile;
+        }
         
-        showMessage('Все данные пользователя очищены', 'success');
+        console.log('✅ Данные пользователя загружены');
+        console.log('📋 Меню:', menus.length);
+        console.log('🛒 Продукты:', currentProducts.length);
+        console.log('✅ Купленные:', boughtProducts.length);
+        console.log('🥘 Ингредиенты:', availableIngredients.length);
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки данных пользователя:', error);
+        // Используем пустые значения по умолчанию
+        menus = [];
+        currentProducts = [];
+        boughtProducts = [];
+        availableIngredients = [];
     }
 }
 
 // Сохранение данных пользователя
 async function saveUserData() {
-    console.log('💾 Начинаем сохранение данных пользователя...');
-    console.log('👤 Текущий пользователь:', currentUser);
+    console.log('💾 Сохраняем данные пользователя...');
     
     if (!currentUser) {
-        console.log('❌ Нет текущего пользователя, пропускаем сохранение');
+        console.warn('⚠️ Нет текущего пользователя для сохранения');
         return;
     }
+    
+    const userData = {
+        menus,
+        currentProducts,
+        boughtProducts,
+        availableIngredients,
+        userProfile,
+        updatedAt: new Date().toISOString()
+    };
     
     try {
         if (supabaseClient && supabaseClient.initialized) {
-            console.log('🗄️ Сохраняем в Supabase...');
             // Сохраняем в Supabase
-            await supabaseClient.updateUserData(currentUser.id, {
-                available_ingredients: availableIngredients,
-                menus: menus
-            });
-            
-            // Сохраняем продукты
-            await supabaseClient.saveProducts(currentUser.id, currentProducts);
-            
-            console.log('✅ Данные сохранены в Supabase');
+            await supabaseClient.saveUserData(currentUser.id, userData);
         } else {
-            console.log('💾 Сохраняем в localStorage...');
-            // Fallback на localStorage
-            const userKey = `user_${currentUser.id}`;
-            
-            console.log('📦 Сохраняем купленные продукты:', boughtProducts.length, 'шт');
-            localStorage.setItem(`${userKey}_boughtProducts`, JSON.stringify(boughtProducts));
-            
-            console.log('🥄 Сохраняем доступные ингредиенты:', availableIngredients.length, 'шт');
-            localStorage.setItem(`${userKey}_availableIngredients`, JSON.stringify(availableIngredients));
-            
-            console.log('🍽️ Сохраняем меню:', menus.length, 'шт');
-            localStorage.setItem(`${userKey}_menus`, JSON.stringify(menus));
-            
-            console.log('🛒 Сохраняем текущие продукты:', currentProducts.length, 'шт');
-            localStorage.setItem(`${userKey}_currentProducts`, JSON.stringify(currentProducts));
-            
-            // Сохраняем общие данные
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            localStorage.setItem('menus', JSON.stringify(menus));
-            localStorage.setItem('boughtProducts', JSON.stringify(boughtProducts));
-            localStorage.setItem('availableIngredients', JSON.stringify(availableIngredients));
-            localStorage.setItem('currentProducts', JSON.stringify(currentProducts));
-            
-            console.log('✅ Все данные сохранены в localStorage');
-            console.log('🔍 Проверьте в Developer Tools → Application → Local Storage');
+            // Сохраняем в localStorage
+            localStorage.setItem(`userData_${currentUser.id}`, JSON.stringify(userData));
         }
+        
+        console.log('✅ Данные пользователя сохранены');
+        
     } catch (error) {
-        console.error('❌ Ошибка сохранения данных:', error);
-        showMessage('Ошибка сохранения данных', 'error');
+        console.error('❌ Ошибка сохранения данных пользователя:', error);
     }
 }
 
-// Переключение вкладок
-function switchTab(tabName) {
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.querySelectorAll('.section').forEach(section => {
-        section.classList.remove('active');
-    });
-
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    document.getElementById(tabName).classList.add('active');
-
-    if (tabName === 'shopping') {
-        updateShoppingUI();
-    } else if (tabName === 'menu') {
-        updateMenuUI();
-    }
-}
-
-// Генерация меню через Gemini API
-async function generateMenu(e) {
-    e.preventDefault();
+// Настройка обработчиков событий
+function setupEventListeners() {
+    console.log('🔧 Настраиваем обработчики событий...');
     
-    const budget = parseInt(document.getElementById('budget').value);
-    const days = parseInt(document.getElementById('days').value);
-    const start = document.getElementById('start').value;
-    const meal = document.getElementById('meal').value;
+    // Обработчики уже настроены в showAuthScreen() и showMainApp()
+    console.log('✅ Обработчики событий настроены');
+}
 
-    if (budget < 500) {
-        showMessage('Бюджет должен быть не менее 500 ₽', 'error');
-        return;
+// Тестирование API ключа
+function testApiKey() {
+    console.log('🔑 Тестируем API ключ...');
+    
+    // Проверяем наличие API ключей
+    const hasApiKeys = window.GEMINI_API_KEY_1 && 
+                      window.GEMINI_API_KEY_1 !== '[ВАШ_API_КЛЮЧ]' &&
+                      window.GEMINI_API_KEY_1 !== '[ВАШ_API_КЛЮЧ_1]';
+    
+    if (hasApiKeys) {
+        console.log('✅ API ключи найдены');
+    } else {
+        console.log('⚠️ API ключи не найдены, будет использоваться Mock режим');
     }
+}
 
-    showLoading(true);
-    showMessage('Генерация меню...', 'success');
-
+// Очистка поврежденных данных
+function clearCorruptedData() {
+    console.log('🧹 Очищаем поврежденные данные...');
+    
     try {
-        console.log('🚀 Начинаем генерацию меню...');
-        console.log('💰 Бюджет:', budget, '₽');
-        console.log('📅 Дни:', days);
-        console.log('🍽️ Прием пищи:', meal);
-        console.log('📍 Начало:', start);
-        
-        // Генерация меню
-        const menuPrompt = `Составь меню на ${days} дней для ${meal} с бюджетом ${budget} ₽, используя продукты из каталога Макси. Учитывай имеющиеся продукты: ${availableIngredients.join(', ')}. Формат: JSON с полями day, meal, recipe, ingredients [{ name, qty, unit }], cookingTime. Верни только JSON в кодовых блоках.`;
-        
-        console.log('🤖 Отправляем запрос на генерацию меню...');
-        const menuResponse = await callGeminiAPI(menuPrompt);
-        let menuData = parseJSONResponse(menuResponse);
-        
-        console.log('📋 Получены данные меню:', menuData);
-        
-        if (!menuData || !Array.isArray(menuData)) {
-            throw new Error('Неверный формат ответа API');
-        }
-
-        // Получение цен для продуктов
-        console.log('💰 Получаем цены для продуктов...');
-        let productsWithPrices = await getProductsWithPrices(menuData, budget);
-        
-        console.log('💵 Стоимость продуктов:', productsWithPrices.totalCost, '₽');
-        
-        if (productsWithPrices.totalCost > budget) {
-            console.log('⚠️ Превышение бюджета, пытаемся скорректировать...');
-            // Попытка корректировки меню
-            const adjustedMenu = await adjustMenuForBudget(menuData, budget, productsWithPrices.totalCost);
-            if (adjustedMenu) {
-                console.log('✅ Меню скорректировано');
-                menuData = adjustedMenu;
-                productsWithPrices = await getProductsWithPrices(menuData, budget);
-                console.log('💵 Новая стоимость:', productsWithPrices.totalCost, '₽');
-            }
-        }
-
-        // Сохранение меню
-        console.log('💾 Сохраняем сгенерированное меню...');
-        
-        const menuId = Date.now();
-        const newMenu = {
-            id: menuId,
-            budget,
-            days,
-            meal,
-            start,
-            items: menuData,
-            totalCost: productsWithPrices.totalCost,
-            createdAt: new Date().toISOString()
-        };
-
-        console.log('📋 Новое меню:', newMenu);
-        
-        menus.push(newMenu);
-        currentMenu = newMenu;
-        currentProducts = productsWithPrices.products;
-        
-        console.log('📊 Обновляем данные приложения...');
-        console.log('🍽️ Меню:', menus.length, 'шт');
-        console.log('🛒 Продукты:', currentProducts.length, 'шт');
-
-        saveUserData();
-        updateMenuSelector();
-        showMessage('Меню успешно сгенерировано!', 'success');
-        
-        console.log('✅ Меню успешно сгенерировано и сохранено');
-        
-        // Переключение на вкладку покупок
-        setTimeout(() => switchTab('shopping'), 1000);
-
-    } catch (error) {
-        console.error('Ошибка генерации меню:', error);
-        showMessage(`Ошибка: ${error.message}`, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Парсинг JSON ответа
-function parseJSONResponse(response) {
-    try {
-        console.log('🔍 Парсим ответ API:', response.substring(0, 200) + '...');
-        
-        if (!response || typeof response !== 'string') {
-            throw new Error('Ответ API не является строкой');
-        }
-        
-        // Ищем JSON в кодовых блоках
-        const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
-        if (jsonMatch) {
-            console.log('📋 Найден JSON в кодовом блоке');
-            return JSON.parse(jsonMatch[1]);
-        }
-        
-        // Пытаемся распарсить как обычный JSON
-        console.log('📋 Пытаемся распарсить как обычный JSON');
-        return JSON.parse(response);
-    } catch (error) {
-        console.error('❌ Ошибка парсинга JSON:', error);
-        console.error('📄 Ответ API:', response);
-        throw new Error(`Не удалось распарсить ответ API: ${error.message}`);
-    }
-}
-
-// Реальный каталог продуктов для Архангельска (цены в рублях)
-const ARKHANGELSK_CATALOG = {
-    // Мясо и птица
-    "куриная грудка": { name: "Куриная грудка", price: 320, unit: "кг", pack: "1 кг" },
-    "куриное филе": { name: "Куриное филе", price: 380, unit: "кг", pack: "1 кг" },
-    "свинина": { name: "Свинина", price: 280, unit: "кг", pack: "1 кг" },
-    "говядина": { name: "Говядина", price: 450, unit: "кг", pack: "1 кг" },
-    "фарш говяжий": { name: "Фарш говяжий", price: 420, unit: "кг", pack: "1 кг" },
-    "фарш свиной": { name: "Фарш свиной", price: 320, unit: "кг", pack: "1 кг" },
-    
-    // Рыба
-    "треска": { name: "Филе трески", price: 280, unit: "кг", pack: "1 кг" },
-    "минтай": { name: "Филе минтая", price: 220, unit: "кг", pack: "1 кг" },
-    "сельдь": { name: "Сельдь", price: 180, unit: "кг", pack: "1 кг" },
-    "лосось": { name: "Филе лосося", price: 650, unit: "кг", pack: "1 кг" },
-    
-    // Молочные продукты
-    "молоко": { name: "Молоко 3.2%", price: 85, unit: "л", pack: "1 л" },
-    "кефир": { name: "Кефир 3.2%", price: 75, unit: "л", pack: "1 л" },
-    "сметана": { name: "Сметана 20%", price: 120, unit: "кг", pack: "400 г" },
-    "творог": { name: "Творог 9%", price: 180, unit: "кг", pack: "200 г" },
-    "сыр": { name: "Сыр Российский", price: 420, unit: "кг", pack: "200 г" },
-    "масло сливочное": { name: "Масло сливочное 82.5%", price: 280, unit: "кг", pack: "180 г" },
-    
-    // Яйца
-    "яйца": { name: "Яйца куриные", price: 120, unit: "дес", pack: "10 шт" },
-    
-    // Крупы и макароны
-    "рис": { name: "Рис длиннозерный", price: 95, unit: "кг", pack: "900 г" },
-    "гречка": { name: "Гречка ядрица", price: 120, unit: "кг", pack: "900 г" },
-    "овсянка": { name: "Овсяные хлопья", price: 85, unit: "кг", pack: "800 г" },
-    "макароны": { name: "Макароны", price: 75, unit: "кг", pack: "500 г" },
-    "паста": { name: "Паста спагетти", price: 85, unit: "кг", pack: "500 г" },
-    
-    // Овощи
-    "картофель": { name: "Картофель", price: 45, unit: "кг", pack: "1 кг" },
-    "морковь": { name: "Морковь", price: 35, unit: "кг", pack: "1 кг" },
-    "лук": { name: "Лук репчатый", price: 25, unit: "кг", pack: "1 кг" },
-    "чеснок": { name: "Чеснок", price: 180, unit: "кг", pack: "100 г" },
-    "огурцы": { name: "Огурцы", price: 120, unit: "кг", pack: "1 кг" },
-    "помидоры": { name: "Помидоры", price: 180, unit: "кг", pack: "1 кг" },
-    "капуста": { name: "Капуста белокочанная", price: 35, unit: "кг", pack: "1 кг" },
-    "свекла": { name: "Свекла", price: 25, unit: "кг", pack: "1 кг" },
-    "брокколи": { name: "Брокколи", price: 280, unit: "кг", pack: "400 г" },
-    "цукини": { name: "Цукини", price: 180, unit: "кг", pack: "1 кг" },
-    
-    // Фрукты
-    "яблоки": { name: "Яблоки", price: 120, unit: "кг", pack: "1 кг" },
-    "бананы": { name: "Бананы", price: 140, unit: "кг", pack: "1 кг" },
-    "апельсины": { name: "Апельсины", price: 160, unit: "кг", pack: "1 кг" },
-    "лимон": { name: "Лимон", price: 180, unit: "кг", pack: "1 кг" },
-    
-    // Ягоды
-    "клубника": { name: "Клубника", price: 450, unit: "кг", pack: "250 г" },
-    "малина": { name: "Малина", price: 380, unit: "кг", pack: "250 г" },
-    "черника": { name: "Черника", price: 420, unit: "кг", pack: "250 г" },
-    
-    // Масла и соусы
-    "масло подсолнечное": { name: "Масло подсолнечное", price: 95, unit: "л", pack: "1 л" },
-    "масло оливковое": { name: "Масло оливковое", price: 280, unit: "л", pack: "500 мл" },
-    "томатная паста": { name: "Томатная паста", price: 65, unit: "кг", pack: "200 г" },
-    "майонез": { name: "Майонез", price: 85, unit: "кг", pack: "250 г" },
-    
-    // Специи и приправы
-    "соль": { name: "Соль поваренная", price: 25, unit: "кг", pack: "1 кг" },
-    "сахар": { name: "Сахар-песок", price: 45, unit: "кг", pack: "1 кг" },
-    "перец черный": { name: "Перец черный молотый", price: 180, unit: "кг", pack: "50 г" },
-    "базилик": { name: "Базилик сушеный", price: 220, unit: "кг", pack: "30 г" },
-    "укроп": { name: "Укроп свежий", price: 120, unit: "кг", pack: "100 г" },
-    "петрушка": { name: "Петрушка свежая", price: 120, unit: "кг", pack: "100 г" },
-    
-    // Консервы
-    "тушенка": { name: "Говядина тушеная", price: 280, unit: "кг", pack: "400 г" },
-    "горошек зеленый": { name: "Горошек зеленый", price: 85, unit: "кг", pack: "400 г" },
-    "кукуруза": { name: "Кукуруза сладкая", price: 95, unit: "кг", pack: "400 г" },
-    "оливки": { name: "Оливки", price: 280, unit: "кг", pack: "200 г" },
-    
-    // Сладости
-    "мед": { name: "Мед натуральный", price: 380, unit: "кг", pack: "500 г" },
-    "шоколад": { name: "Шоколад молочный", price: 280, unit: "кг", pack: "100 г" },
-    "печенье": { name: "Печенье", price: 120, unit: "кг", pack: "300 г" },
-    
-    // Напитки
-    "чай": { name: "Чай черный", price: 180, unit: "кг", pack: "100 г" },
-    "кофе": { name: "Кофе растворимый", price: 420, unit: "кг", pack: "100 г" },
-    "сок": { name: "Сок апельсиновый", price: 120, unit: "л", pack: "1 л" },
-    
-    // Хлебобулочные
-    "хлеб": { name: "Хлеб белый", price: 45, unit: "шт", pack: "1 шт" },
-    "батон": { name: "Батон нарезка", price: 35, unit: "шт", pack: "1 шт" },
-    "булочки": { name: "Булочки сдобные", price: 25, unit: "шт", pack: "1 шт" }
-};
-
-// Функция поиска продукта в каталоге
-function findProductInCatalog(productName) {
-    const normalizedName = productName.toLowerCase().trim();
-    
-    // Прямой поиск
-    if (ARKHANGELSK_CATALOG[normalizedName]) {
-        return ARKHANGELSK_CATALOG[normalizedName];
-    }
-    
-    // Поиск по частичному совпадению
-    for (const [key, product] of Object.entries(ARKHANGELSK_CATALOG)) {
-        if (key.includes(normalizedName) || normalizedName.includes(key)) {
-            return product;
-        }
-    }
-    
-    // Поиск по ключевым словам
-    const keywords = {
-        "мясо": "свинина",
-        "курица": "куриная грудка",
-        "рыба": "треска",
-        "молоко": "молоко",
-        "яйцо": "яйца",
-        "картошка": "картофель",
-        "морковка": "морковь",
-        "луковица": "лук",
-        "огурчик": "огурцы",
-        "помидор": "помидоры",
-        "капуста": "капуста",
-        "свекла": "свекла",
-        "яблоко": "яблоки",
-        "банан": "бананы",
-        "лимон": "лимон",
-        "клубника": "клубника",
-        "малина": "малина",
-        "масло": "масло подсолнечное",
-        "соль": "соль",
-        "сахар": "сахар",
-        "перец": "перец черный",
-        "хлеб": "хлеб"
-    };
-    
-    for (const [keyword, productKey] of Object.entries(keywords)) {
-        if (normalizedName.includes(keyword)) {
-            return ARKHANGELSK_CATALOG[productKey];
-        }
-    }
-    
-    // Если не найден, возвращаем базовый продукт
-    return {
-        name: productName,
-        price: 150,
-        unit: "шт",
-        pack: "1 шт"
-    };
-}
-
-// Получение цен для продуктов
-async function getProductsWithPrices(menuData, budget) {
-    const allIngredients = [];
-    const products = [];
-    let totalCost = 0;
-
-    console.log('📋 Анализируем меню для сбора ингредиентов...');
-    console.log('🍽️ Количество блюд:', menuData.length);
-
-    // Сбор всех ингредиентов с учетом количества
-    menuData.forEach((item, itemIndex) => {
-        console.log(`📝 Блюдо ${itemIndex + 1}: ${item.meal} - ${item.recipe}`);
-        
-        if (item.ingredients && Array.isArray(item.ingredients)) {
-            item.ingredients.forEach((ingredient, ingIndex) => {
-                console.log(`  🥄 Ингредиент ${ingIndex + 1}: ${ingredient.name} ${ingredient.qty}${ingredient.unit}`);
-                
-                // Проверяем, есть ли уже такой ингредиент
-                const existingIndex = allIngredients.findIndex(ing => 
-                    ing.name.toLowerCase() === ingredient.name.toLowerCase()
-                );
-                
-                if (existingIndex >= 0) {
-                    // Добавляем количество к существующему ингредиенту
-                    allIngredients[existingIndex].qty += ingredient.qty || 1;
-                    console.log(`  ➕ Добавлено к существующему: ${allIngredients[existingIndex].qty}${allIngredients[existingIndex].unit}`);
-                } else {
-                    // Добавляем новый ингредиент
-                    allIngredients.push({
-                        name: ingredient.name,
-                        qty: ingredient.qty || 1,
-                        unit: ingredient.unit || 'шт'
-                    });
-                    console.log(`  🆕 Новый ингредиент добавлен`);
+        // Проверяем и очищаем localStorage
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+            try {
+                const value = localStorage.getItem(key);
+                if (value && (key.includes('userData') || key.includes('currentUser') || key.includes('users'))) {
+                    JSON.parse(value);
                 }
-            });
-        }
-    });
-
-    console.log('📊 Всего уникальных ингредиентов:', allIngredients.length);
-    allIngredients.forEach((ing, index) => {
-        console.log(`  ${index + 1}. ${ing.name}: ${ing.qty}${ing.unit}`);
-    });
-
-    // Получение цен из каталога Архангельска
-    for (let i = 0; i < allIngredients.length; i++) {
-        const ingredient = allIngredients[i];
-        
-        try {
-            console.log(`💰 [${i + 1}/${allIngredients.length}] Получаем цену для: ${ingredient.name}`);
-            
-            // Ищем продукт в каталоге Архангельска
-            const catalogProduct = findProductInCatalog(ingredient.name);
-            
-            if (catalogProduct && catalogProduct.price) {
-                // Рассчитываем стоимость с учетом количества
-                let productCost = catalogProduct.price;
-                
-                // Конвертируем единицы измерения
-                if (ingredient.unit === 'г' && catalogProduct.unit === 'кг') {
-                    productCost = (catalogProduct.price * ingredient.qty) / 1000;
-                } else if (ingredient.unit === 'мл' && catalogProduct.unit === 'л') {
-                    productCost = (catalogProduct.price * ingredient.qty) / 1000;
-                } else if (ingredient.unit === 'шт' && catalogProduct.unit === 'дес') {
-                    productCost = (catalogProduct.price * ingredient.qty) / 10;
-                } else {
-                    productCost = catalogProduct.price * ingredient.qty;
-                }
-                
-                const product = {
-                    name: catalogProduct.name,
-                    pack: catalogProduct.pack,
-                    price: catalogProduct.price,
-                    qty: ingredient.qty,
-                    unit: ingredient.unit,
-                    sum: Math.round(productCost * 100) / 100 // Округляем до копеек
-                };
-                
-                console.log(`✅ Цена получена: ${product.name} - ${product.price} ₽ за ${product.pack}`);
-                console.log(`   Итого: ${product.qty} × ${product.price} ₽ = ${product.sum} ₽`);
-                
-                products.push(product);
-                totalCost += product.sum;
-            } else {
-                throw new Error('Продукт не найден в каталоге');
+            } catch (error) {
+                console.log(`🗑️ Удаляем поврежденные данные: ${key}`);
+                localStorage.removeItem(key);
             }
-        } catch (error) {
-            console.warn(`⚠️ Ошибка получения цены для ${ingredient.name}:`, error);
-            console.log(`💡 Используем базовую цену для ${ingredient.name}`);
-            
-            // Добавляем продукт с базовой ценой
-            const product = {
-                name: ingredient.name,
-                pack: '~',
-                price: 150,
-                qty: ingredient.qty,
-                unit: ingredient.unit,
-                sum: 150 * ingredient.qty
-            };
-            products.push(product);
-            totalCost += product.sum;
-        }
+        });
+        
+        console.log('✅ Поврежденные данные очищены');
+        
+    } catch (error) {
+        console.error('❌ Ошибка очистки поврежденных данных:', error);
     }
-
-    console.log('💰 Итоговая стоимость:', totalCost, '₽');
-    console.log('🛒 Количество продуктов:', products.length);
-
-    return { products, totalCost };
 }
 
-// Корректировка меню под бюджет
-async function adjustMenuForBudget(originalMenu, budget, currentCost) {
+// Безопасный парсинг JSON
+function safeJsonParse(jsonString, defaultValue = null) {
+    if (!jsonString) return defaultValue;
+    
     try {
-        const adjustPrompt = `Скорректируй меню, чтобы уложиться в бюджет ${budget} ₽. Текущая стоимость: ${currentCost} ₽. Используй более дешёвые продукты, замени дорогие ингредиенты на аналоги. Формат: JSON с полями day, meal, recipe, ingredients [{ name, qty, unit }], cookingTime. Верни только JSON.`;
-        
-        const adjustResponse = await callGeminiAPI(adjustPrompt);
-        return parseJSONResponse(adjustResponse);
+        return JSON.parse(jsonString);
     } catch (error) {
-        console.warn('Не удалось скорректировать меню:', error);
-        return null;
+        console.warn('⚠️ Ошибка парсинга JSON:', error);
+        return defaultValue;
     }
+}
+
+// Очистка всех данных пользователя
+function clearAllUserData() {
+    console.log('🗑️ Очищаем все данные пользователя...');
+    
+    // Очищаем переменные
+    menus = [];
+    currentProducts = [];
+    boughtProducts = [];
+    availableIngredients = [];
+    
+    // Очищаем localStorage
+    if (currentUser) {
+        localStorage.removeItem(`userData_${currentUser.id}`);
+    }
+    localStorage.removeItem('currentUser');
+    
+    // Очищаем Supabase
+    if (supabaseClient && supabaseClient.initialized) {
+        supabaseClient.clearUserData(currentUser?.id);
+    }
+    
+    console.log('✅ Все данные пользователя очищены');
+}
+
+// Показать/скрыть загрузку
+function showLoading(show) {
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.classList.toggle('active', show);
+    }
+}
+
+// Показать сообщение
+function showMessage(text, type = 'info') {
+    console.log(`📢 ${type.toUpperCase()}: ${text}`);
+    
+    const message = document.createElement('div');
+    message.className = `message ${type}`;
+    message.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        ${text}
+    `;
+    
+    // Добавляем сообщение в контейнер
+    const container = document.querySelector('.app-content') || document.querySelector('.auth-screen');
+    if (container) {
+        container.insertBefore(message, container.firstChild);
+        
+        // Удаляем сообщение через 5 секунд
+        setTimeout(() => {
+            if (message.parentNode) {
+                message.remove();
+            }
+        }, 5000);
+    }
+}
+
+// Обновление UI
+function updateUI() {
+    console.log('🎨 Обновляем UI...');
+    
+    // Обновляем селектор меню
+    updateMenuSelector();
+    
+    // Обновляем отображение покупок
+    updateShoppingUI();
+    
+    // Обновляем отображение меню
+    updateMenuUI();
+    
+    console.log('✅ UI обновлен');
+}
+
+// Обновление селектора меню
+function updateMenuSelector() {
+    const menuSelector = document.getElementById('menuSelector');
+    if (!menuSelector) return;
+    
+    // Очищаем текущие опции
+    menuSelector.innerHTML = '<option value="">Выберите меню</option>';
+    
+    // Добавляем все сохраненные меню
+    menus.forEach((menu, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `Меню ${index + 1} (${menu.budget} ₽, ${menu.days} дн.)`;
+        menuSelector.appendChild(option);
+    });
+    
+    // Устанавливаем текущее меню как выбранное
+    if (currentMenu) {
+        const currentIndex = menus.findIndex(menu => menu.id === currentMenu.id);
+        if (currentIndex >= 0) {
+            menuSelector.value = currentIndex;
+        }
+    }
+    
+    // Добавляем обработчик изменения
+    menuSelector.addEventListener('change', (e) => {
+        const selectedIndex = parseInt(e.target.value);
+        if (selectedIndex >= 0 && selectedIndex < menus.length) {
+            currentMenu = menus[selectedIndex];
+            updateMenuUI();
+        }
+    });
 }
 
 // Обновление UI покупок
 function updateShoppingUI() {
     const shoppingContent = document.getElementById('shoppingContent');
+    if (!shoppingContent) return;
     
     if (currentProducts.length === 0) {
         shoppingContent.innerHTML = '<p>Сначала сгенерируйте меню</p>';
@@ -1388,7 +1983,7 @@ function updateShoppingUI() {
     shoppingContent.innerHTML = `
         <div class="available-ingredients">
             <div class="ingredients-title">Имеющиеся ингредиенты:</div>
-            <div class="ingredients-list">${availableIngredients.join(', ')}</div>
+            <div class="ingredients-list">${availableIngredients.length > 0 ? availableIngredients.join(', ') : 'Нет доступных ингредиентов'}</div>
         </div>
         
         <div class="search-box">
@@ -1409,10 +2004,10 @@ function updateShoppingUI() {
     `;
 
     // Добавить обработчики для новых элементов
-    document.getElementById('searchProducts').addEventListener('input', filterProducts);
-    document.getElementById('markAllBought').addEventListener('click', markAllAsBought);
-    document.getElementById('resetList').addEventListener('click', resetShoppingList);
-    document.getElementById('clearAllData').addEventListener('click', clearAllUserData);
+    document.getElementById('searchProducts')?.addEventListener('input', filterProducts);
+    document.getElementById('markAllBought')?.addEventListener('click', markAllAsBought);
+    document.getElementById('resetList')?.addEventListener('click', resetShoppingList);
+    document.getElementById('clearAllData')?.addEventListener('click', clearAllUserData);
 
     renderProductsList();
 }
@@ -1420,10 +2015,8 @@ function updateShoppingUI() {
 // Рендеринг списка продуктов
 function renderProductsList() {
     const productsList = document.getElementById('productsList');
-    const boughtProductsDiv = document.getElementById('boughtProducts');
-    const totalSum = document.getElementById('totalSum');
-    const progressFill = document.getElementById('progressFill');
-
+    if (!productsList) return;
+    
     // Список продуктов
     productsList.innerHTML = '';
     currentProducts.forEach((product, index) => {
@@ -1455,35 +2048,22 @@ function renderProductsList() {
                 }
                 saveUserData();
                 renderProductsList();
-                updateMenuStatus(); // Обновляем статус меню
+                updateMenuStatus();
             });
             
             productsList.appendChild(productCard);
         }
     });
 
-    // Список купленных продуктов
-    if (boughtProductsDiv) {
-        boughtProductsDiv.innerHTML = '';
-        boughtProducts.forEach(index => {
-            const product = currentProducts[index];
-            const boughtItem = document.createElement('div');
-            boughtItem.className = 'bought-item';
-            boughtItem.innerHTML = `
-                <span class="bought-name">${product.name}</span>
-                <span class="bought-price">${product.sum.toFixed(2)} ₽</span>
-            `;
-            boughtProductsDiv.appendChild(boughtItem);
-        });
-    }
-
     // Общая сумма
-    const totalCost = boughtProducts.reduce((sum, index) => sum + currentProducts[index].sum, 0);
+    const totalSum = document.getElementById('totalSum');
     if (totalSum) {
+        const totalCost = boughtProducts.reduce((sum, index) => sum + currentProducts[index].sum, 0);
         totalSum.innerHTML = `Итого куплено: <strong>${totalCost.toFixed(2)} ₽</strong>`;
     }
 
     // Прогресс-бар
+    const progressFill = document.getElementById('progressFill');
     if (progressFill) {
         const progress = currentProducts.length > 0 ? (boughtProducts.length / currentProducts.length) * 100 : 0;
         progressFill.style.width = `${progress}%`;
@@ -1531,6 +2111,7 @@ function resetShoppingList() {
 // Обновление UI меню
 function updateMenuUI() {
     const menuContent = document.getElementById('menuContent');
+    if (!menuContent) return;
     
     if (menus.length === 0) {
         menuContent.innerHTML = '<p>Сначала сгенерируйте меню</p>';
@@ -1540,24 +2121,47 @@ function updateMenuUI() {
     // Используем последнее сгенерированное меню
     currentMenu = menus[menus.length - 1];
 
+    // Проверяем статус меню
+    const isMenuLocked = currentMenu.status === 'shopping' || currentMenu.status === undefined;
+    const menuClass = isMenuLocked ? 'menu-locked' : '';
+
     menuContent.innerHTML = `
         <div class="menu-header">
             <h3>Меню на ${currentMenu.days} дней (${currentMenu.meal})</h3>
             <p>Бюджет: ${currentMenu.totalCost} ₽</p>
             <div class="menu-status" id="menuStatus">
-                <span class="status-indicator inactive">⏳ Ожидание покупки продуктов</span>
+                <span class="status-indicator ${isMenuLocked ? 'inactive' : 'active'}">
+                    ${isMenuLocked ? '🔒 Меню заблокировано' : '✅ Меню активно'}
+                </span>
             </div>
         </div>
         
-        <div id="menuItems"></div>
+        <div id="menuItems" class="${menuClass}"></div>
         
         <div class="menu-actions">
             <button class="btn btn-success" id="generateNewMenu">Сгенерировать новое меню</button>
+            ${isMenuLocked ? '<button class="btn btn-primary" id="continueShopping">Продолжить покупки</button>' : ''}
         </div>
     `;
 
     // Добавить обработчики
-    document.getElementById('generateNewMenu').addEventListener('click', () => switchTab('settings'));
+    document.getElementById('generateNewMenu').addEventListener('click', () => {
+        const navTabs = document.querySelectorAll('.nav-tab');
+        const sections = document.querySelectorAll('.section');
+        
+        navTabs.forEach(t => t.classList.remove('active'));
+        sections.forEach(s => s.classList.remove('active'));
+        
+        document.querySelector('[data-tab="settings"]').classList.add('active');
+        document.getElementById('settings').classList.add('active');
+    });
+    
+    const continueShoppingBtn = document.getElementById('continueShopping');
+    if (continueShoppingBtn) {
+        continueShoppingBtn.addEventListener('click', () => {
+            showShoppingListDialog(currentProducts, currentMenu.budget, currentMenu.items);
+        });
+    }
 
     renderMenuItems();
     updateMenuStatus();
@@ -1583,15 +2187,12 @@ function updateMenuStatus() {
 // Рендеринг элементов меню
 function renderMenuItems() {
     const menuItems = document.getElementById('menuItems');
+    if (!menuItems) return;
     
     if (!currentMenu) {
         menuItems.innerHTML = '<p>Нет доступного меню</p>';
         return;
     }
-
-    console.log('🍽️ Рендерим элементы меню...');
-    console.log('📋 Текущее меню:', currentMenu);
-    console.log('🥘 Количество блюд:', currentMenu.items ? currentMenu.items.length : 0);
 
     menuItems.innerHTML = '';
     
@@ -1672,7 +2273,7 @@ function showMealDetails(day, meal) {
     if (!mealItem) return;
 
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'modal active';
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
@@ -1734,18 +2335,17 @@ function startTimer(minutes) {
     }
 
     let timeLeft = minutes * 60;
-    const timerDisplay = document.getElementById('timerDisplay');
-    const timer = document.getElementById('timer');
-
+    
+    // Создаем таймер если его нет
+    let timer = document.getElementById('timer');
     if (!timer) {
-        // Создать таймер если его нет
         const timerHTML = `
             <div class="timer active" id="timer">
                 <div class="timer-display" id="timerDisplay">${Math.floor(timeLeft / 60).toString().padStart(2, '0')}:${(timeLeft % 60).toString().padStart(2, '0')}</div>
                 <button class="btn btn-primary" id="stopTimer">Остановить таймер</button>
             </div>
         `;
-        document.querySelector('.container').insertAdjacentHTML('beforeend', timerHTML);
+        document.querySelector('.app-content').insertAdjacentHTML('beforeend', timerHTML);
         
         document.getElementById('stopTimer').addEventListener('click', stopTimer);
     } else {
@@ -1756,12 +2356,18 @@ function startTimer(minutes) {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
         
-        document.getElementById('timerDisplay').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        const timerDisplay = document.getElementById('timerDisplay');
+        if (timerDisplay) {
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
         
         if (timeLeft <= 0) {
             clearInterval(activeTimer);
             activeTimer = null;
-            document.getElementById('timer').classList.remove('active');
+            const timerElement = document.getElementById('timer');
+            if (timerElement) {
+                timerElement.classList.remove('active');
+            }
             
             // Уведомление
             if (Notification.permission === 'granted') {
@@ -1788,33 +2394,6 @@ function stopTimer() {
     if (timer) {
         timer.classList.remove('active');
     }
-}
-
-// Показать/скрыть загрузку
-function showLoading(show) {
-    document.getElementById('loading').classList.toggle('active', show);
-}
-
-// Показать сообщение
-function showMessage(text, type) {
-    const message = document.createElement('div');
-    message.className = `message ${type}`;
-    message.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        ${text}
-    `;
-    
-    document.querySelector('.container').insertBefore(message, document.querySelector('nav').nextSibling);
-    
-    setTimeout(() => {
-        message.remove();
-    }, 5000);
-}
-
-// Обновление всего UI
-function updateUI() {
-    updateShoppingUI();
-    updateMenuUI();
 }
 
 // Запрос разрешения на уведомления
