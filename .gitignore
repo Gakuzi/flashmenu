@@ -1,0 +1,37 @@
+# Зависимости
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Переменные окружения
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Конфигурационные файлы с API ключами
+config.js
+
+# Логи
+logs
+*.log
+
+# Временные файлы
+.tmp/
+.temp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Сборка
+dist/
+build/ 
