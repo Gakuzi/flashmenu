@@ -1,33 +1,199 @@
-// Конфигурация API (используем из config.js)
-const API_CONFIG = window.GEMINI_CONFIG || {
-    apiKey: 'YOUR_API_KEY_HERE', // Заполняется через GitHub Actions
+// Конфигурация API
+const API_CONFIG = {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
 };
 
-// Проверяем правильность API ключа
-console.log('=== API Key Verification ===');
-console.log('Config loaded:', !!window.GEMINI_CONFIG);
-console.log('API Key from config:', API_CONFIG.apiKey);
-console.log('API Key length:', API_CONFIG.apiKey ? API_CONFIG.apiKey.length : 0);
-console.log('Expected key:', '[ВАШ_API_КЛЮЧ]');
-console.log('Keys match:', API_CONFIG.apiKey === '[ВАШ_API_КЛЮЧ]');
-console.log('==========================');
-
-// Функция для получения API ключа
+// Получение API ключа
 function getApiKey() {
-    try {
-        // Используем API ключ из конфигурации
-        if (API_CONFIG.apiKey) {
-            console.log('✅ API Key загружен из конфигурации');
-            return API_CONFIG.apiKey;
-        }
-        
-        console.error('❌ API ключ не найден в конфигурации');
-        return null;
-    } catch (error) {
-        console.error('❌ Ошибка получения API ключа:', error);
-        return null;
+    // Сначала пробуем из config.js (создается GitHub Actions)
+    if (window.GEMINI_CONFIG && window.GEMINI_CONFIG.apiKey) {
+        return window.GEMINI_CONFIG.apiKey;
     }
+    
+    // Fallback для разработки
+    return '[ВАШ_API_КЛЮЧ]';
+}
+
+// Простой вызов Gemini API
+async function callGeminiAPI(prompt) {
+    const apiKey = getApiKey();
+    
+    // Если нет реального ключа, используем Mock данные
+    if (!apiKey || apiKey === '[ВАШ_API_КЛЮЧ]') {
+        console.log('🎭 Используем Mock данные (нет API ключа)');
+        return generateMockMenu(prompt);
+    }
+
+    try {
+        console.log('🔑 Вызываем Gemini API...');
+        
+        const url = `${API_CONFIG.baseUrl}?key=${apiKey}`;
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 8192,
+                },
+                safetySettings: [
+                    {
+                        category: "HARM_CATEGORY_HARASSMENT",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_HATE_SPEECH",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                    }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ API Error:', errorData);
+            
+            // Если API недоступен, используем Mock
+            if (errorData.error?.message?.includes('quota') || 
+                errorData.error?.message?.includes('location') ||
+                response.status === 403) {
+                console.log('🔄 API недоступен, используем Mock данные');
+                return generateMockMenu(prompt);
+            }
+            
+            throw new Error(`Ошибка API: ${errorData.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Ответ получен от Gemini API');
+        return data.candidates[0].content.parts[0].text;
+        
+    } catch (error) {
+        console.error('❌ Ошибка API:', error.message);
+        console.log('🔄 Используем Mock данные');
+        return generateMockMenu(prompt);
+    }
+}
+
+// Генерация Mock меню (работает без сервера)
+function generateMockMenu(prompt) {
+    console.log('🎭 Генерируем Mock меню...');
+    
+    const mockMenu = {
+        "menu": {
+            "Понедельник": {
+                "Завтрак": {
+                    "name": "Овсяная каша с фруктами",
+                    "ingredients": [
+                        {"name": "Овсяные хлопья", "amount": "100г", "price": 45},
+                        {"name": "Молоко", "amount": "200мл", "price": 35},
+                        {"name": "Банан", "amount": "1шт", "price": 25},
+                        {"name": "Мед", "amount": "1ч.л.", "price": 15}
+                    ]
+                },
+                "Обед": {
+                    "name": "Куриный суп с овощами",
+                    "ingredients": [
+                        {"name": "Куриная грудка", "amount": "150г", "price": 120},
+                        {"name": "Картофель", "amount": "2шт", "price": 20},
+                        {"name": "Морковь", "amount": "1шт", "price": 15},
+                        {"name": "Лук", "amount": "1шт", "price": 10},
+                        {"name": "Зелень", "amount": "по вкусу", "price": 25}
+                    ]
+                },
+                "Ужин": {
+                    "name": "Греческий салат",
+                    "ingredients": [
+                        {"name": "Огурцы", "amount": "2шт", "price": 30},
+                        {"name": "Помидоры", "amount": "2шт", "price": 40},
+                        {"name": "Сыр фета", "amount": "50г", "price": 80},
+                        {"name": "Оливки", "amount": "10шт", "price": 45},
+                        {"name": "Оливковое масло", "amount": "2ст.л.", "price": 20}
+                    ]
+                }
+            },
+            "Вторник": {
+                "Завтрак": {
+                    "name": "Творожная запеканка",
+                    "ingredients": [
+                        {"name": "Творог", "amount": "200г", "price": 60},
+                        {"name": "Яйца", "amount": "2шт", "price": 30},
+                        {"name": "Сахар", "amount": "2ст.л.", "price": 10},
+                        {"name": "Сметана", "amount": "2ст.л.", "price": 20}
+                    ]
+                },
+                "Обед": {
+                    "name": "Паста с томатным соусом",
+                    "ingredients": [
+                        {"name": "Паста", "amount": "100г", "price": 40},
+                        {"name": "Томатная паста", "amount": "2ст.л.", "price": 25},
+                        {"name": "Чеснок", "amount": "2зубчика", "price": 10},
+                        {"name": "Базилик", "amount": "по вкусу", "price": 30}
+                    ]
+                },
+                "Ужин": {
+                    "name": "Рыба на пару с овощами",
+                    "ingredients": [
+                        {"name": "Филе трески", "amount": "150г", "price": 180},
+                        {"name": "Брокколи", "amount": "100г", "price": 50},
+                        {"name": "Цукини", "amount": "1шт", "price": 35},
+                        {"name": "Лимон", "amount": "1/2шт", "price": 20}
+                    ]
+                }
+            },
+            "Среда": {
+                "Завтрак": {
+                    "name": "Смузи с ягодами",
+                    "ingredients": [
+                        {"name": "Клубника", "amount": "100г", "price": 80},
+                        {"name": "Малина", "amount": "50г", "price": 60},
+                        {"name": "Йогурт", "amount": "150мл", "price": 45},
+                        {"name": "Мед", "amount": "1ч.л.", "price": 15}
+                    ]
+                },
+                "Обед": {
+                    "name": "Салат Цезарь",
+                    "ingredients": [
+                        {"name": "Куриная грудка", "amount": "100г", "price": 80},
+                        {"name": "Салат Айсберг", "amount": "1/2шт", "price": 40},
+                        {"name": "Сухарики", "amount": "2ст.л.", "price": 15},
+                        {"name": "Пармезан", "amount": "30г", "price": 90},
+                        {"name": "Соус Цезарь", "amount": "2ст.л.", "price": 35}
+                    ]
+                },
+                "Ужин": {
+                    "name": "Овощное рагу",
+                    "ingredients": [
+                        {"name": "Картофель", "amount": "3шт", "price": 30},
+                        {"name": "Морковь", "amount": "2шт", "price": 30},
+                        {"name": "Лук", "amount": "1шт", "price": 10},
+                        {"name": "Чеснок", "amount": "3зубчика", "price": 15},
+                        {"name": "Растительное масло", "amount": "2ст.л.", "price": 10}
+                    ]
+                }
+            }
+        }
+    };
+    
+    return JSON.stringify(mockMenu, null, 2);
 }
 
 // Состояние приложения
@@ -823,141 +989,6 @@ async function generateMenu(e) {
     } finally {
         showLoading(false);
     }
-}
-
-// Вызов Gemini API через локальный прокси
-async function callGeminiAPI(prompt) {
-    try {
-        console.log('🤖 Отправляем запрос через локальный прокси...');
-        
-        // Сначала пробуем основной прокси
-        const proxyUrl = 'http://localhost:3000/api/gemini';
-        
-        const response = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ prompt })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('❌ Прокси API Error:', errorData);
-            
-            // Если прокси недоступен, пробуем Mock API
-            if (response.status === 0 || response.status === 500) {
-                console.log('🔄 Прокси недоступен, пробуем Mock API...');
-                return await callMockAPI(prompt);
-            }
-            
-            // Если все API ключи не сработали, используем Mock API
-            if (errorData.error === 'All API keys failed') {
-                console.log('🔄 Все API ключи заблокированы, используем Mock API...');
-                return await callMockAPI(prompt);
-            }
-            
-            throw new Error(`Ошибка прокси API: ${errorData.error || response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log('✅ Ответ получен через прокси');
-        return data.candidates[0].content.parts[0].text;
-        
-    } catch (error) {
-        console.warn('⚠️ Ошибка прокси, пробуем Mock API:', error.message);
-        return await callMockAPI(prompt);
-    }
-}
-
-// Вызов Mock API (fallback)
-async function callMockAPI(prompt) {
-    try {
-        console.log('🎭 Используем Mock API...');
-        
-        const mockUrl = 'http://localhost:3000/api/gemini-mock';
-        
-        const response = await fetch(mockUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ prompt })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Mock API Error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log('✅ Ответ получен от Mock API');
-        return data.candidates[0].content.parts[0].text;
-        
-    } catch (error) {
-        console.error('❌ Mock API тоже не работает:', error.message);
-        throw new Error('Все API недоступны. Проверьте подключение к серверу.');
-    }
-}
-
-// Прямой вызов Gemini API (fallback)
-async function callGeminiAPIDirect(prompt) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        throw new Error('Не удалось получить API ключ');
-    }
-
-    // Формируем URL с API ключом
-    const url = `${API_CONFIG.baseUrl}?key=${apiKey}`;
-    
-    console.log('🔑 Прямой вызов Gemini API...');
-    console.log('🌐 API URL:', url);
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{
-                    text: prompt
-                }]
-            }],
-            generationConfig: {
-                temperature: 0.7,
-                topK: 40,
-                topP: 0.95,
-                maxOutputTokens: 8192, // Увеличиваем для Gemini 2.0
-            },
-            safetySettings: [
-                {
-                    category: "HARM_CATEGORY_HARASSMENT",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    category: "HARM_CATEGORY_HATE_SPEECH",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                }
-            ]
-        })
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Прямой API Error:', errorData);
-        throw new Error(`Ошибка API: ${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
 }
 
 // Парсинг JSON ответа
