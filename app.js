@@ -853,7 +853,6 @@ async function initSupabase() {
         try {
             console.log('🔧 Создаем SupabaseClient...');
             console.log('SupabaseClient доступен:', typeof SupabaseClient);
-            console.log('SupabaseClient:', SupabaseClient);
             
             if (typeof SupabaseClient !== 'function') {
                 throw new Error('SupabaseClient не загружен');
@@ -1052,39 +1051,25 @@ async function handleLogin(e) {
     try {
         console.log('🔐 Попытка входа для:', email);
         
-        if (supabaseClient && supabaseClient.initialized) {
-            // Вход через Supabase
-            const result = await supabaseClient.signIn(email, password);
-            
-            if (result.success) {
-                currentUser = result.user;
-                await loadUserData();
-                showMainApp();
-                showMessage('Вход выполнен успешно!', 'success');
-            } else {
-                errorElement.textContent = result.message || 'Ошибка входа';
-            }
-        } else {
-            // Вход через localStorage
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-            
-            if (!user) {
-                errorElement.textContent = 'Пользователь не найден';
-                return;
-            }
-            
-            if (user.password !== password) {
-                errorElement.textContent = 'Неверный пароль';
-                return;
-            }
-            
-            currentUser = user;
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            await loadUserData();
-            showMainApp();
-            showMessage('Вход выполнен успешно!', 'success');
+        // Вход через localStorage (так как Supabase не настроен)
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+        
+        if (!user) {
+            errorElement.textContent = 'Пользователь не найден';
+            return;
         }
+        
+        if (user.password !== password) {
+            errorElement.textContent = 'Неверный пароль';
+            return;
+        }
+        
+        currentUser = user;
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        await loadUserData();
+        showMainApp();
+        showMessage('Вход выполнен успешно!', 'success');
         
     } catch (error) {
         console.error('❌ Ошибка входа:', error);
@@ -1129,46 +1114,32 @@ async function handleRegister(e) {
     try {
         console.log('📝 Попытка регистрации для:', email);
         
-        if (supabaseClient && supabaseClient.initialized) {
-            // Регистрация через Supabase
-            const result = await supabaseClient.signUp(email, password, name);
-            
-            if (result.success) {
-                currentUser = result.user;
-                await loadUserData();
-                showMainApp();
-                showMessage('Регистрация выполнена успешно!', 'success');
-            } else {
-                errorElement.textContent = result.message || 'Ошибка регистрации';
-            }
-        } else {
-            // Регистрация через localStorage
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            
-            // Проверяем, не существует ли уже пользователь
-            if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-                errorElement.textContent = 'Пользователь с таким email уже существует';
-                return;
-            }
-            
-            // Создаем нового пользователя
-            const newUser = {
-                id: Date.now().toString(),
-                name,
-                email,
-                password,
-                createdAt: new Date().toISOString()
-            };
-            
-            users.push(newUser);
-            localStorage.setItem('users', JSON.stringify(users));
-            
-            currentUser = newUser;
-            localStorage.setItem('currentUser', JSON.stringify(newUser));
-            await loadUserData();
-            showMainApp();
-            showMessage('Регистрация выполнена успешно!', 'success');
+        // Регистрация через localStorage (так как Supabase не настроен)
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        
+        // Проверяем, не существует ли уже пользователь
+        if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+            errorElement.textContent = 'Пользователь с таким email уже существует';
+            return;
         }
+        
+        // Создаем нового пользователя
+        const newUser = {
+            id: Date.now().toString(),
+            name,
+            email,
+            password,
+            createdAt: new Date().toISOString()
+        };
+        
+        users.push(newUser);
+        localStorage.setItem('users', JSON.stringify(users));
+        
+        currentUser = newUser;
+        localStorage.setItem('currentUser', JSON.stringify(newUser));
+        await loadUserData();
+        showMainApp();
+        showMessage('Регистрация выполнена успешно!', 'success');
         
     } catch (error) {
         console.error('❌ Ошибка регистрации:', error);
@@ -1668,37 +1639,26 @@ function showChangePasswordDialog() {
         }
         
         try {
-            if (supabaseClient && supabaseClient.initialized) {
-                // Смена пароля через Supabase
-                const result = await supabaseClient.changePassword(currentPassword, newPassword);
-                if (result.success) {
-                    document.body.removeChild(modal);
-                    showMessage('Пароль изменен успешно!', 'success');
-                } else {
-                    errorElement.textContent = result.message || 'Ошибка смены пароля';
-                }
-            } else {
-                // Смена пароля через localStorage
-                if (currentUser.password !== currentPassword) {
-                    errorElement.textContent = 'Неверный текущий пароль';
-                    return;
-                }
-                
-                // Обновляем пароль
-                currentUser.password = newPassword;
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                
-                // Обновляем в списке пользователей
-                const users = JSON.parse(localStorage.getItem('users') || '[]');
-                const userIndex = users.findIndex(u => u.id === currentUser.id);
-                if (userIndex >= 0) {
-                    users[userIndex].password = newPassword;
-                    localStorage.setItem('users', JSON.stringify(users));
-                }
-                
-                document.body.removeChild(modal);
-                showMessage('Пароль изменен успешно!', 'success');
+            // Смена пароля через localStorage (так как Supabase не настроен)
+            if (currentUser.password !== currentPassword) {
+                errorElement.textContent = 'Неверный текущий пароль';
+                return;
             }
+            
+            // Обновляем пароль
+            currentUser.password = newPassword;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            // Обновляем в списке пользователей
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const userIndex = users.findIndex(u => u.id === currentUser.id);
+            if (userIndex >= 0) {
+                users[userIndex].password = newPassword;
+                localStorage.setItem('users', JSON.stringify(users));
+            }
+            
+            document.body.removeChild(modal);
+            showMessage('Пароль изменен успешно!', 'success');
         } catch (error) {
             console.error('❌ Ошибка смены пароля:', error);
             errorElement.textContent = 'Произошла ошибка при смене пароля';
@@ -1730,26 +1690,14 @@ async function loadUserData() {
     console.log('📂 Загружаем данные пользователя...');
     
     try {
-        if (supabaseClient && supabaseClient.initialized) {
-            // Загружаем данные из Supabase
-            const userData = await supabaseClient.getUserData(currentUser.id);
-            if (userData) {
-                menus = userData.menus || [];
-                currentProducts = userData.currentProducts || [];
-                boughtProducts = userData.boughtProducts || [];
-                availableIngredients = userData.availableIngredients || [];
-                userProfile = userData.userProfile || userProfile;
-            }
-        } else {
-            // Загружаем данные из localStorage
-            const userData = safeJsonParse(localStorage.getItem(`userData_${currentUser.id}`), {});
-            
-            menus = userData.menus || [];
-            currentProducts = userData.currentProducts || [];
-            boughtProducts = userData.boughtProducts || [];
-            availableIngredients = userData.availableIngredients || [];
-            userProfile = userData.userProfile || userProfile;
-        }
+        // Загружаем данные из localStorage (так как Supabase не настроен)
+        const userData = safeJsonParse(localStorage.getItem(`userData_${currentUser.id}`), {});
+        
+        menus = userData.menus || [];
+        currentProducts = userData.currentProducts || [];
+        boughtProducts = userData.boughtProducts || [];
+        availableIngredients = userData.availableIngredients || [];
+        userProfile = userData.userProfile || userProfile;
         
         console.log('✅ Данные пользователя загружены');
         console.log('📋 Меню:', menus.length);
@@ -1786,13 +1734,8 @@ async function saveUserData() {
     };
     
     try {
-        if (supabaseClient && supabaseClient.initialized) {
-            // Сохраняем в Supabase
-            await supabaseClient.saveUserData(currentUser.id, userData);
-        } else {
-            // Сохраняем в localStorage
-            localStorage.setItem(`userData_${currentUser.id}`, JSON.stringify(userData));
-        }
+        // Сохраняем в localStorage (так как Supabase не настроен)
+        localStorage.setItem(`userData_${currentUser.id}`, JSON.stringify(userData));
         
         console.log('✅ Данные пользователя сохранены');
         
@@ -1879,10 +1822,10 @@ function clearAllUserData() {
     }
     localStorage.removeItem('currentUser');
     
-    // Очищаем Supabase
-    if (supabaseClient && supabaseClient.initialized) {
-        supabaseClient.clearUserData(currentUser?.id);
-    }
+    // Очищаем Supabase (если бы был настроен)
+    // if (supabaseClient && supabaseClient.initialized) {
+    //     supabaseClient.clearUserData(currentUser?.id);
+    // }
     
     console.log('✅ Все данные пользователя очищены');
 }
