@@ -103,7 +103,7 @@ app.post('/api/gemini', async (req, res) => {
 
 // Вызов Gemini API с конкретным ключом
 async function callGeminiWithKey(apiKey, prompt) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
     
     const requestBody = {
         contents: [{
@@ -115,7 +115,7 @@ async function callGeminiWithKey(apiKey, prompt) {
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 8192, // Увеличиваем для Gemini 2.0
         },
         safetySettings: [
             {
