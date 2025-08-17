@@ -9,25 +9,22 @@ let currentKeyIndex = 0;
 
 // Инициализация API ключей
 function initializeApiKeys() {
-    // Сначала пробуем загрузить из config.js (GitHub Actions)
-    if (window.GEMINI_CONFIG && window.GEMINI_CONFIG.apiKey) {
-        apiKeys.push(window.GEMINI_CONFIG.apiKey);
-    }
-    
-    // Добавляем дополнительные ключи из переменных окружения (если есть)
+    // Загружаем ключи только из GitHub Actions секретов
+    // В продакшене эти переменные заполняются автоматически GitHub Actions
     for (let i = 1; i <= 8; i++) {
         const key = window[`GEMINI_API_KEY_${i}`];
-        if (key && key !== '[ВАШ_API_КЛЮЧ]' && !apiKeys.includes(key)) {
+        if (key && key !== '[ВАШ_API_КЛЮЧ]' && key !== `[ВАШ_API_КЛЮЧ_${i}]`) {
             apiKeys.push(key);
         }
     }
     
-    // Fallback для разработки
+    // Если нет ключей из секретов, используем Mock
     if (apiKeys.length === 0) {
-        apiKeys.push('[ВАШ_API_КЛЮЧ]');
+        console.log('🎭 Нет API ключей из секретов, используем Mock данные');
+        return;
     }
     
-    console.log(`🔑 Загружено ${apiKeys.length} API ключей`);
+    console.log(`🔑 Загружено ${apiKeys.length} API ключей из секретов`);
     apiKeys.forEach((key, index) => {
         const maskedKey = key.substring(0, 10) + '...' + key.substring(key.length - 4);
         console.log(`  ${index + 1}. ${maskedKey}`);
@@ -39,11 +36,12 @@ function getCurrentApiKey() {
     if (apiKeys.length === 0) {
         initializeApiKeys();
     }
-    return apiKeys[currentKeyIndex] || '[ВАШ_API_КЛЮЧ]';
+    return apiKeys[currentKeyIndex];
 }
 
 // Переключение на следующий ключ
 function switchToNextKey() {
+    if (apiKeys.length === 0) return null;
     currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
     console.log(`🔄 Переключаемся на ключ ${currentKeyIndex + 1}/${apiKeys.length}`);
     return getCurrentApiKey();
@@ -62,9 +60,9 @@ async function callGeminiAPI(prompt) {
         initializeApiKeys();
     }
     
-    // Если нет реальных ключей, используем Mock данные
-    if (apiKeys.length === 1 && apiKeys[0] === '[ВАШ_API_КЛЮЧ]') {
-        console.log('🎭 Используем Mock данные (нет API ключей)');
+    // Если нет ключей из секретов, используем Mock данные
+    if (apiKeys.length === 0) {
+        console.log('🎭 Используем Mock данные (нет API ключей из секретов)');
         return generateMockMenu(prompt);
     }
 
@@ -75,12 +73,9 @@ async function callGeminiAPI(prompt) {
     while (attempt < maxAttempts) {
         const apiKey = getCurrentApiKey();
         
-        // Пропускаем placeholder ключи
-        if (apiKey === '[ВАШ_API_КЛЮЧ]') {
-            console.log(`⏭️ Пропускаем placeholder ключ ${currentKeyIndex + 1}`);
-            switchToNextKey();
-            attempt++;
-            continue;
+        if (!apiKey) {
+            console.log('❌ Нет доступных API ключей');
+            break;
         }
         
         try {
