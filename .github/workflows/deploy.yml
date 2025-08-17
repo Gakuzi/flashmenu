@@ -54,8 +54,13 @@ jobs:
         # Создаем директорию для артефактов
         mkdir -p dist
         
-        # Копируем все файлы в dist
-        cp -r * dist/
+        # Копируем файлы по отдельности, исключая dist
+        cp index.html dist/
+        cp app.js dist/
+        cp supabase-client.js dist/
+        cp README.md dist/
+        cp .gitignore dist/
+        cp config.example.js dist/
         
         # Убеждаемся, что config.js создан
         ls -la dist/
