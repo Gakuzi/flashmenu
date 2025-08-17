@@ -5,6 +5,14 @@ const API_CONFIG = {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
 };
 
+// Проверяем правильность API ключа
+console.log('=== API Key Verification ===');
+console.log('Original key: AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs');
+console.log('Encrypted key: ' + API_CONFIG.encryptedKey);
+console.log('Decrypted key: ' + atob(API_CONFIG.encryptedKey));
+console.log('Keys match: ' + (atob(API_CONFIG.encryptedKey) === 'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs'));
+console.log('==========================');
+
 // Функция для получения API ключа
 function getApiKey() {
     try {
@@ -43,6 +51,8 @@ function testApiKey() {
     console.log('Encrypted key:', API_CONFIG.encryptedKey);
     console.log('Decrypted key:', apiKey);
     console.log('Key length:', apiKey ? apiKey.length : 0);
+    console.log('Expected key: AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs');
+    console.log('Keys match:', apiKey === 'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs');
     console.log('===================');
 }
 
