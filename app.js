@@ -9,7 +9,9 @@ const API_CONFIG = {
 function getApiKey() {
     try {
         // Простое дешифрование (в реальном проекте используйте более сложные методы)
-        return atob(API_CONFIG.encryptedKey);
+        const decryptedKey = atob(API_CONFIG.encryptedKey);
+        console.log('API Key decrypted successfully');
+        return decryptedKey;
     } catch (error) {
         console.error('Ошибка получения API ключа:', error);
         return null;
@@ -27,9 +29,22 @@ let activeTimer = null;
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
+    // Тестируем API ключ
+    testApiKey();
+    
     checkAuth();
     setupEventListeners();
 });
+
+// Тестирование API ключа
+function testApiKey() {
+    const apiKey = getApiKey();
+    console.log('=== API Key Test ===');
+    console.log('Encrypted key:', API_CONFIG.encryptedKey);
+    console.log('Decrypted key:', apiKey);
+    console.log('Key length:', apiKey ? apiKey.length : 0);
+    console.log('===================');
+}
 
 // Проверка авторизации
 function checkAuth() {
@@ -342,7 +357,13 @@ async function callGeminiAPI(prompt) {
         throw new Error('Не удалось получить API ключ');
     }
 
-    const response = await fetch(API_CONFIG.baseUrl, {
+    // Формируем URL с API ключом
+    const url = `${API_CONFIG.baseUrl}?key=${apiKey}`;
+    
+    console.log('API URL:', url);
+    console.log('API Key:', apiKey ? 'Получен' : 'Не получен');
+
+    const response = await fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -358,6 +379,7 @@ async function callGeminiAPI(prompt) {
 
     if (!response.ok) {
         const errorData = await response.json();
+        console.error('API Error Response:', errorData);
         throw new Error(`Ошибка API: ${errorData.error?.message || response.statusText}`);
     }
 
