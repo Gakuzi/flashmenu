@@ -24,28 +24,28 @@
 
 ```
 Name: GEMINI_API_KEY_1
-Secret: AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4
+Secret: [ВАШ_ПЕРВЫЙ_API_КЛЮЧ]
 
 Name: GEMINI_API_KEY_2
-Secret: AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs
+Secret: [ВАШ_ВТОРОЙ_API_КЛЮЧ]
 
 Name: GEMINI_API_KEY_3
-Secret: AIzaSyAHXBqiRczF4uG0Tofjgxj5zc17UoQUZBA
+Secret: [ВАШ_ТРЕТИЙ_API_КЛЮЧ]
 
 Name: GEMINI_API_KEY_4
-Secret: AIzaSyAgh5xa8XnqPmNfI0fCod6yg-6Sg7452g0
+Secret: [ВАШ_ЧЕТВЕРТЫЙ_API_КЛЮЧ]
 
 Name: GEMINI_API_KEY_5
-Secret: AIzaSyByjQ6kPNERkk8L7X_lh8RwHN3EQ5mA2Cc
+Secret: [ВАШ_ПЯТЫЙ_API_КЛЮЧ]
 
 Name: GEMINI_API_KEY_6
-Secret: AIzaSyBnwKmznR0WJDrdwTnaCkE9oQeEC2fu-oU
+Secret: [ВАШ_ШЕСТОЙ_API_КЛЮЧ]
 
 Name: GEMINI_API_KEY_7
-Secret: AIzaSyClQBZftyxshvfQPYGbPFu-Cp3L8cwHExc
+Secret: [ВАШ_СЕДЬМОЙ_API_КЛЮЧ]
 
 Name: GEMINI_API_KEY_8
-Secret: AIzaSyCu8E9W2JyXbQHwXf95PmGtoqX2kevFU3U
+Secret: [ВАШ_ВОСЬМОЙ_API_КЛЮЧ]
 ```
 
 ### **Шаг 3: Добавьте секреты для Supabase (если нужно)**
@@ -64,7 +64,7 @@ Secret: your-anon-key-here
 ```javascript
 // Конфигурация создается автоматически из секретов GitHub Actions
 window.GEMINI_CONFIG = {
-  apiKey: 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4',
+  apiKey: '[ВАШ_API_КЛЮЧ]',
   baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
 };
 
