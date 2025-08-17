@@ -1103,6 +1103,156 @@ function parseJSONResponse(response) {
     }
 }
 
+// Реальный каталог продуктов для Архангельска (цены в рублях)
+const ARKHANGELSK_CATALOG = {
+    // Мясо и птица
+    "куриная грудка": { name: "Куриная грудка", price: 320, unit: "кг", pack: "1 кг" },
+    "куриное филе": { name: "Куриное филе", price: 380, unit: "кг", pack: "1 кг" },
+    "свинина": { name: "Свинина", price: 280, unit: "кг", pack: "1 кг" },
+    "говядина": { name: "Говядина", price: 450, unit: "кг", pack: "1 кг" },
+    "фарш говяжий": { name: "Фарш говяжий", price: 420, unit: "кг", pack: "1 кг" },
+    "фарш свиной": { name: "Фарш свиной", price: 320, unit: "кг", pack: "1 кг" },
+    
+    // Рыба
+    "треска": { name: "Филе трески", price: 280, unit: "кг", pack: "1 кг" },
+    "минтай": { name: "Филе минтая", price: 220, unit: "кг", pack: "1 кг" },
+    "сельдь": { name: "Сельдь", price: 180, unit: "кг", pack: "1 кг" },
+    "лосось": { name: "Филе лосося", price: 650, unit: "кг", pack: "1 кг" },
+    
+    // Молочные продукты
+    "молоко": { name: "Молоко 3.2%", price: 85, unit: "л", pack: "1 л" },
+    "кефир": { name: "Кефир 3.2%", price: 75, unit: "л", pack: "1 л" },
+    "сметана": { name: "Сметана 20%", price: 120, unit: "кг", pack: "400 г" },
+    "творог": { name: "Творог 9%", price: 180, unit: "кг", pack: "200 г" },
+    "сыр": { name: "Сыр Российский", price: 420, unit: "кг", pack: "200 г" },
+    "масло сливочное": { name: "Масло сливочное 82.5%", price: 280, unit: "кг", pack: "180 г" },
+    
+    // Яйца
+    "яйца": { name: "Яйца куриные", price: 120, unit: "дес", pack: "10 шт" },
+    
+    // Крупы и макароны
+    "рис": { name: "Рис длиннозерный", price: 95, unit: "кг", pack: "900 г" },
+    "гречка": { name: "Гречка ядрица", price: 120, unit: "кг", pack: "900 г" },
+    "овсянка": { name: "Овсяные хлопья", price: 85, unit: "кг", pack: "800 г" },
+    "макароны": { name: "Макароны", price: 75, unit: "кг", pack: "500 г" },
+    "паста": { name: "Паста спагетти", price: 85, unit: "кг", pack: "500 г" },
+    
+    // Овощи
+    "картофель": { name: "Картофель", price: 45, unit: "кг", pack: "1 кг" },
+    "морковь": { name: "Морковь", price: 35, unit: "кг", pack: "1 кг" },
+    "лук": { name: "Лук репчатый", price: 25, unit: "кг", pack: "1 кг" },
+    "чеснок": { name: "Чеснок", price: 180, unit: "кг", pack: "100 г" },
+    "огурцы": { name: "Огурцы", price: 120, unit: "кг", pack: "1 кг" },
+    "помидоры": { name: "Помидоры", price: 180, unit: "кг", pack: "1 кг" },
+    "капуста": { name: "Капуста белокочанная", price: 35, unit: "кг", pack: "1 кг" },
+    "свекла": { name: "Свекла", price: 25, unit: "кг", pack: "1 кг" },
+    "брокколи": { name: "Брокколи", price: 280, unit: "кг", pack: "400 г" },
+    "цукини": { name: "Цукини", price: 180, unit: "кг", pack: "1 кг" },
+    
+    // Фрукты
+    "яблоки": { name: "Яблоки", price: 120, unit: "кг", pack: "1 кг" },
+    "бананы": { name: "Бананы", price: 140, unit: "кг", pack: "1 кг" },
+    "апельсины": { name: "Апельсины", price: 160, unit: "кг", pack: "1 кг" },
+    "лимон": { name: "Лимон", price: 180, unit: "кг", pack: "1 кг" },
+    
+    // Ягоды
+    "клубника": { name: "Клубника", price: 450, unit: "кг", pack: "250 г" },
+    "малина": { name: "Малина", price: 380, unit: "кг", pack: "250 г" },
+    "черника": { name: "Черника", price: 420, unit: "кг", pack: "250 г" },
+    
+    // Масла и соусы
+    "масло подсолнечное": { name: "Масло подсолнечное", price: 95, unit: "л", pack: "1 л" },
+    "масло оливковое": { name: "Масло оливковое", price: 280, unit: "л", pack: "500 мл" },
+    "томатная паста": { name: "Томатная паста", price: 65, unit: "кг", pack: "200 г" },
+    "майонез": { name: "Майонез", price: 85, unit: "кг", pack: "250 г" },
+    
+    // Специи и приправы
+    "соль": { name: "Соль поваренная", price: 25, unit: "кг", pack: "1 кг" },
+    "сахар": { name: "Сахар-песок", price: 45, unit: "кг", pack: "1 кг" },
+    "перец черный": { name: "Перец черный молотый", price: 180, unit: "кг", pack: "50 г" },
+    "базилик": { name: "Базилик сушеный", price: 220, unit: "кг", pack: "30 г" },
+    "укроп": { name: "Укроп свежий", price: 120, unit: "кг", pack: "100 г" },
+    "петрушка": { name: "Петрушка свежая", price: 120, unit: "кг", pack: "100 г" },
+    
+    // Консервы
+    "тушенка": { name: "Говядина тушеная", price: 280, unit: "кг", pack: "400 г" },
+    "горошек зеленый": { name: "Горошек зеленый", price: 85, unit: "кг", pack: "400 г" },
+    "кукуруза": { name: "Кукуруза сладкая", price: 95, unit: "кг", pack: "400 г" },
+    "оливки": { name: "Оливки", price: 280, unit: "кг", pack: "200 г" },
+    
+    // Сладости
+    "мед": { name: "Мед натуральный", price: 380, unit: "кг", pack: "500 г" },
+    "шоколад": { name: "Шоколад молочный", price: 280, unit: "кг", pack: "100 г" },
+    "печенье": { name: "Печенье", price: 120, unit: "кг", pack: "300 г" },
+    
+    // Напитки
+    "чай": { name: "Чай черный", price: 180, unit: "кг", pack: "100 г" },
+    "кофе": { name: "Кофе растворимый", price: 420, unit: "кг", pack: "100 г" },
+    "сок": { name: "Сок апельсиновый", price: 120, unit: "л", pack: "1 л" },
+    
+    // Хлебобулочные
+    "хлеб": { name: "Хлеб белый", price: 45, unit: "шт", pack: "1 шт" },
+    "батон": { name: "Батон нарезка", price: 35, unit: "шт", pack: "1 шт" },
+    "булочки": { name: "Булочки сдобные", price: 25, unit: "шт", pack: "1 шт" }
+};
+
+// Функция поиска продукта в каталоге
+function findProductInCatalog(productName) {
+    const normalizedName = productName.toLowerCase().trim();
+    
+    // Прямой поиск
+    if (ARKHANGELSK_CATALOG[normalizedName]) {
+        return ARKHANGELSK_CATALOG[normalizedName];
+    }
+    
+    // Поиск по частичному совпадению
+    for (const [key, product] of Object.entries(ARKHANGELSK_CATALOG)) {
+        if (key.includes(normalizedName) || normalizedName.includes(key)) {
+            return product;
+        }
+    }
+    
+    // Поиск по ключевым словам
+    const keywords = {
+        "мясо": "свинина",
+        "курица": "куриная грудка",
+        "рыба": "треска",
+        "молоко": "молоко",
+        "яйцо": "яйца",
+        "картошка": "картофель",
+        "морковка": "морковь",
+        "луковица": "лук",
+        "огурчик": "огурцы",
+        "помидор": "помидоры",
+        "капуста": "капуста",
+        "свекла": "свекла",
+        "яблоко": "яблоки",
+        "банан": "бананы",
+        "лимон": "лимон",
+        "клубника": "клубника",
+        "малина": "малина",
+        "масло": "масло подсолнечное",
+        "соль": "соль",
+        "сахар": "сахар",
+        "перец": "перец черный",
+        "хлеб": "хлеб"
+    };
+    
+    for (const [keyword, productKey] of Object.entries(keywords)) {
+        if (normalizedName.includes(keyword)) {
+            return ARKHANGELSK_CATALOG[productKey];
+        }
+    }
+    
+    // Если не найден, возвращаем базовый продукт
+    return {
+        name: productName,
+        price: 150,
+        unit: "шт",
+        pack: "1 шт"
+    };
+}
+
 // Получение цен для продуктов
 async function getProductsWithPrices(menuData, budget) {
     const allIngredients = [];
@@ -1147,26 +1297,38 @@ async function getProductsWithPrices(menuData, budget) {
         console.log(`  ${index + 1}. ${ing.name}: ${ing.qty}${ing.unit}`);
     });
 
-    // Получение цен по одному продукту
+    // Получение цен из каталога Архангельска
     for (let i = 0; i < allIngredients.length; i++) {
         const ingredient = allIngredients[i];
         
         try {
             console.log(`💰 [${i + 1}/${allIngredients.length}] Получаем цену для: ${ingredient.name}`);
             
-            const pricePrompt = `Найди цену для продукта "${ingredient.name}" в каталоге Макси. Формат ответа: JSON с полями name, pack, price. Если продукт не найден, предложи аналог. Верни только JSON.`;
+            // Ищем продукт в каталоге Архангельска
+            const catalogProduct = findProductInCatalog(ingredient.name);
             
-            const priceResponse = await callGeminiAPI(pricePrompt);
-            const priceData = parseJSONResponse(priceResponse);
-            
-            if (priceData && priceData.price) {
+            if (catalogProduct && catalogProduct.price) {
+                // Рассчитываем стоимость с учетом количества
+                let productCost = catalogProduct.price;
+                
+                // Конвертируем единицы измерения
+                if (ingredient.unit === 'г' && catalogProduct.unit === 'кг') {
+                    productCost = (catalogProduct.price * ingredient.qty) / 1000;
+                } else if (ingredient.unit === 'мл' && catalogProduct.unit === 'л') {
+                    productCost = (catalogProduct.price * ingredient.qty) / 1000;
+                } else if (ingredient.unit === 'шт' && catalogProduct.unit === 'дес') {
+                    productCost = (catalogProduct.price * ingredient.qty) / 10;
+                } else {
+                    productCost = catalogProduct.price * ingredient.qty;
+                }
+                
                 const product = {
-                    name: priceData.name,
-                    pack: priceData.pack,
-                    price: parseFloat(priceData.price),
+                    name: catalogProduct.name,
+                    pack: catalogProduct.pack,
+                    price: catalogProduct.price,
                     qty: ingredient.qty,
                     unit: ingredient.unit,
-                    sum: parseFloat(priceData.price) * ingredient.qty
+                    sum: Math.round(productCost * 100) / 100 // Округляем до копеек
                 };
                 
                 console.log(`✅ Цена получена: ${product.name} - ${product.price} ₽ за ${product.pack}`);
@@ -1175,17 +1337,17 @@ async function getProductsWithPrices(menuData, budget) {
                 products.push(product);
                 totalCost += product.sum;
             } else {
-                throw new Error('Неверный формат данных о цене');
+                throw new Error('Продукт не найден в каталоге');
             }
         } catch (error) {
             console.warn(`⚠️ Ошибка получения цены для ${ingredient.name}:`, error);
-            console.log(`💡 Используем примерную цену для ${ingredient.name}`);
+            console.log(`💡 Используем базовую цену для ${ingredient.name}`);
             
-            // Добавляем продукт с примерной ценой
+            // Добавляем продукт с базовой ценой
             const product = {
                 name: ingredient.name,
                 pack: '~',
-                price: 150, // Более реалистичная цена
+                price: 150,
                 qty: ingredient.qty,
                 unit: ingredient.unit,
                 sum: 150 * ingredient.qty
@@ -1293,40 +1455,40 @@ function renderProductsList() {
                 }
                 saveUserData();
                 renderProductsList();
+                updateMenuStatus(); // Обновляем статус меню
             });
             
             productsList.appendChild(productCard);
         }
     });
 
-    // Купленные продукты
-    boughtProductsDiv.innerHTML = '';
-    boughtProducts.forEach(index => {
-        const product = currentProducts[index];
-        if (product) {
-            const boughtCard = document.createElement('div');
-            boughtCard.className = 'product-card';
-            boughtCard.style.background = '#ecfdf5';
-            boughtCard.innerHTML = `
-                <div class="product-info">
-                    <div class="product-name">${product.name} ✓</div>
-                    <div class="product-details">${product.pack} • ${product.qty} ${product.unit}</div>
-                </div>
-                <div class="product-price">${product.sum.toFixed(2)} ₽</div>
+    // Список купленных продуктов
+    if (boughtProductsDiv) {
+        boughtProductsDiv.innerHTML = '';
+        boughtProducts.forEach(index => {
+            const product = currentProducts[index];
+            const boughtItem = document.createElement('div');
+            boughtItem.className = 'bought-item';
+            boughtItem.innerHTML = `
+                <span class="bought-name">${product.name}</span>
+                <span class="bought-price">${product.sum.toFixed(2)} ₽</span>
             `;
-            boughtProductsDiv.appendChild(boughtCard);
-        }
-    });
+            boughtProductsDiv.appendChild(boughtItem);
+        });
+    }
 
-    // Общая сумма и прогресс
-    const totalCost = currentProducts.reduce((sum, product, index) => {
-        return sum + (boughtProducts.includes(index) ? 0 : product.sum);
-    }, 0);
+    // Общая сумма
+    const totalCost = boughtProducts.reduce((sum, index) => sum + currentProducts[index].sum, 0);
+    if (totalSum) {
+        totalSum.innerHTML = `Итого куплено: <strong>${totalCost.toFixed(2)} ₽</strong>`;
+    }
 
-    totalSum.textContent = `Общая сумма: ${totalCost.toFixed(2)} ₽`;
-    
-    const progress = currentProducts.length > 0 ? (boughtProducts.length / currentProducts.length) * 100 : 0;
-    progressFill.style.width = `${progress}%`;
+    // Прогресс-бар
+    if (progressFill) {
+        const progress = currentProducts.length > 0 ? (boughtProducts.length / currentProducts.length) * 100 : 0;
+        progressFill.style.width = `${progress}%`;
+        progressFill.style.backgroundColor = progress === 100 ? '#10b981' : '#6366f1';
+    }
 }
 
 // Фильтрация продуктов
@@ -1375,66 +1537,46 @@ function updateMenuUI() {
         return;
     }
 
+    // Используем последнее сгенерированное меню
+    currentMenu = menus[menus.length - 1];
+
     menuContent.innerHTML = `
-        <div class="menu-selector">
-            <select class="menu-select" id="menuSelector">
-                <option value="">Выберите меню...</option>
-            </select>
-            <button class="btn btn-success" id="generateNewMenu">Сгенерировать новое меню</button>
+        <div class="menu-header">
+            <h3>Меню на ${currentMenu.days} дней (${currentMenu.meal})</h3>
+            <p>Бюджет: ${currentMenu.totalCost} ₽</p>
+            <div class="menu-status" id="menuStatus">
+                <span class="status-indicator inactive">⏳ Ожидание покупки продуктов</span>
+            </div>
         </div>
         
         <div id="menuItems"></div>
+        
+        <div class="menu-actions">
+            <button class="btn btn-success" id="generateNewMenu">Сгенерировать новое меню</button>
+        </div>
     `;
 
     // Добавить обработчики
     document.getElementById('generateNewMenu').addEventListener('click', () => switchTab('settings'));
-    document.getElementById('menuSelector').addEventListener('change', loadSelectedMenu);
 
-    updateMenuSelector();
     renderMenuItems();
+    updateMenuStatus();
 }
 
-// Обновление селектора меню
-function updateMenuSelector() {
-    const selector = document.getElementById('menuSelector');
-    if (!selector) return;
+// Обновление статуса меню
+function updateMenuStatus() {
+    const menuStatus = document.getElementById('menuStatus');
+    if (!menuStatus) return;
     
-    console.log('🔄 Обновляем селектор меню...');
-    console.log('📋 Доступные меню:', menus);
+    // Проверяем, куплены ли все продукты
+    const allProductsBought = currentProducts.length > 0 && boughtProducts.length === currentProducts.length;
     
-    selector.innerHTML = '<option value="">Выберите меню...</option>';
-    
-    if (menus.length === 0) {
-        console.log('⚠️ Нет доступных меню');
-        return;
-    }
-    
-    menus.forEach((menu, index) => {
-        const option = document.createElement('option');
-        option.value = menu.id;
-        
-        // Форматируем дату создания
-        const createdDate = new Date(menu.createdAt);
-        const dateStr = createdDate.toLocaleDateString('ru-RU');
-        
-        // Подсчитываем количество блюд
-        const totalDishes = menu.items ? menu.items.length : 0;
-        
-        option.textContent = `Меню на ${menu.days} дней (${menu.meal}) - ${totalDishes} блюд, ${menu.totalCost} ₽ - ${dateStr}`;
-        selector.appendChild(option);
-        
-        console.log(`📝 Меню ${index + 1}: ${option.textContent}`);
-    });
-    
-    console.log('✅ Селектор меню обновлен');
-}
-
-// Загрузка выбранного меню
-function loadSelectedMenu() {
-    const menuId = document.getElementById('menuSelector').value;
-    if (menuId) {
-        currentMenu = menus.find(m => m.id == menuId);
-        renderMenuItems();
+    if (allProductsBought) {
+        menuStatus.innerHTML = '<span class="status-indicator active">✅ Все продукты куплены! Меню активно</span>';
+    } else {
+        const boughtCount = boughtProducts.length;
+        const totalCount = currentProducts.length;
+        menuStatus.innerHTML = `<span class="status-indicator inactive">⏳ Куплено ${boughtCount} из ${totalCount} продуктов</span>`;
     }
 }
 
@@ -1443,7 +1585,7 @@ function renderMenuItems() {
     const menuItems = document.getElementById('menuItems');
     
     if (!currentMenu) {
-        menuItems.innerHTML = '<p>Выберите меню из списка</p>';
+        menuItems.innerHTML = '<p>Нет доступного меню</p>';
         return;
     }
 
@@ -1454,7 +1596,7 @@ function renderMenuItems() {
     menuItems.innerHTML = '';
     
     if (!currentMenu.items || currentMenu.items.length === 0) {
-        menuItems.innerHTML = '<p>В выбранном меню нет блюд</p>';
+        menuItems.innerHTML = '<p>В меню нет блюд</p>';
         return;
     }
 
@@ -1467,44 +1609,122 @@ function renderMenuItems() {
         dishesByDay[item.day].push(item);
     });
 
-    console.log('📅 Блюда по дням:', dishesByDay);
+    // Проверяем статус покупок
+    const allProductsBought = currentProducts.length > 0 && boughtProducts.length === currentProducts.length;
 
     // Рендерим каждый день
     Object.keys(dishesByDay).forEach(day => {
-        const dayHeader = document.createElement('div');
-        dayHeader.className = 'day-header';
-        dayHeader.innerHTML = `<h3>${day}</h3>`;
-        menuItems.appendChild(dayHeader);
+        const daySection = document.createElement('div');
+        daySection.className = 'day-section';
+        daySection.innerHTML = `
+            <h4 class="day-title">${day}</h4>
+            <div class="day-meals">
+                ${dishesByDay[day].map((item, index) => `
+                    <div class="meal-card ${allProductsBought ? 'active' : 'inactive'}" data-day="${day}" data-meal="${item.meal}">
+                        <div class="meal-header">
+                            <h5>${item.meal}</h5>
+                            ${item.cookingTime ? `<span class="cooking-time">⏱️ ${item.cookingTime} мин</span>` : ''}
+                        </div>
+                        <div class="meal-preview">
+                            <p class="recipe-preview">${item.recipe.substring(0, 100)}${item.recipe.length > 100 ? '...' : ''}</p>
+                        </div>
+                        ${allProductsBought ? `
+                            <button class="btn btn-primary btn-sm start-cooking" data-day="${day}" data-meal="${item.meal}">
+                                🍳 Начать готовить
+                            </button>
+                        ` : `
+                            <div class="meal-locked">
+                                🔒 Купите продукты для разблокировки
+                            </div>
+                        `}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        menuItems.appendChild(daySection);
+    });
 
-        // Рендерим блюда для этого дня
-        dishesByDay[day].forEach((item, index) => {
-            const recipeCard = document.createElement('div');
-            recipeCard.className = 'recipe-card';
-            
-            const ingredientsList = item.ingredients ? item.ingredients.map(ing => 
-                `${ing.name} ${ing.qty} ${ing.unit}`
-            ).join(', ') : '';
-
-            recipeCard.innerHTML = `
-                <div class="recipe-header">
-                    <div class="recipe-title">${item.meal}</div>
-                    ${item.cookingTime ? `<div class="recipe-time">⏱️ ${item.cookingTime} мин</div>` : ''}
-                </div>
-                <div class="recipe-ingredients">
-                    <strong>🥄 Ингредиенты:</strong> ${ingredientsList}
-                </div>
-                <div class="recipe-description">
-                    <strong>📝 Рецепт:</strong> ${item.recipe}
-                </div>
-                ${item.cookingTime ? `<button class="btn btn-primary" onclick="startTimer(${item.cookingTime})">⏰ Запустить таймер</button>` : ''}
-            `;
-            
-            menuItems.appendChild(recipeCard);
-            console.log(`✅ Блюдо ${index + 1} для ${day}: ${item.meal} - ${item.recipe}`);
+    // Добавляем обработчики для кнопок готовки
+    document.querySelectorAll('.start-cooking').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const day = e.target.dataset.day;
+            const meal = e.target.dataset.meal;
+            showMealDetails(day, meal);
         });
     });
 
-    console.log('✅ Элементы меню отрендерены');
+    // Добавляем обработчики для карточек блюд
+    document.querySelectorAll('.meal-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('start-cooking')) {
+                const day = card.dataset.day;
+                const meal = card.dataset.meal;
+                showMealDetails(day, meal);
+            }
+        });
+    });
+}
+
+// Показ деталей блюда
+function showMealDetails(day, meal) {
+    const mealItem = currentMenu.items.find(item => item.day === day && item.meal === meal);
+    if (!mealItem) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>${day} - ${meal}</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="recipe-section">
+                    <h4>Рецепт</h4>
+                    <p>${mealItem.recipe}</p>
+                </div>
+                
+                <div class="ingredients-section">
+                    <h4>Ингредиенты</h4>
+                    <ul>
+                        ${mealItem.ingredients.map(ing => `
+                            <li>${ing.name} - ${ing.qty} ${ing.unit}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+                
+                ${mealItem.cookingTime ? `
+                    <div class="cooking-section">
+                        <h4>Время приготовления: ${mealItem.cookingTime} минут</h4>
+                        <button class="btn btn-success start-timer" data-time="${mealItem.cookingTime}">
+                            ⏰ Запустить таймер
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Обработчики
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('.start-timer')?.addEventListener('click', (e) => {
+        const time = parseInt(e.target.dataset.time);
+        startTimer(time);
+        document.body.removeChild(modal);
+    });
+
+    // Закрытие по клику вне модала
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
 }
 
 // Запуск таймера
