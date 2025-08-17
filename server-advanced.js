@@ -14,12 +14,22 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('.'));
 
-// Альтернативные API ключи для обхода географических ограничений
-const ALTERNATIVE_KEYS = [
-    'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4', // Основной ключ
-    'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs', // Альтернативный ключ
-    // Добавьте сюда ваши дополнительные API ключи
-];
+// Загружаем API ключи из безопасного файла
+let ALTERNATIVE_KEYS = [];
+
+try {
+    // Пытаемся загрузить ключи из файла api-keys.js
+    const apiKeysModule = require('./api-keys.js');
+    ALTERNATIVE_KEYS = apiKeysModule.GEMINI || [];
+    console.log(`🔑 Загружено ${ALTERNATIVE_KEYS.length} API ключей из api-keys.js`);
+} catch (error) {
+    console.warn('⚠️ Не удалось загрузить api-keys.js, используем резервные ключи');
+    // Резервные ключи (не публикуйте их в GitHub!)
+    ALTERNATIVE_KEYS = [
+        'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4', // Основной ключ
+        'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs', // Альтернативный ключ
+    ];
+}
 
 // Прокси для Gemini API с автоматическим переключением ключей
 app.post('/api/gemini', async (req, res) => {
