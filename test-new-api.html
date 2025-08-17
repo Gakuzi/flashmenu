@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест нового API ключа Gemini</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .test-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .result {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .key-display {
+            background: #fef3c7;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Тест нового API ключа Gemini</h1>
+        
+        <div class="status info">
+            <strong>Статус:</strong> Проверяем конфигурацию...
+        </div>
+
+        <h2>📋 Конфигурация</h2>
+        <div id="configInfo"></div>
+
+        <h2>🧪 Тесты</h2>
+        <button class="test-button" onclick="testConfig()">Проверить конфигурацию</button>
+        <button class="test-button" onclick="testApiKey()">Тест API ключа</button>
+        <button class="test-button" onclick="testGeminiAPI()">Тест Gemini API</button>
+        <button class="test-button" onclick="clearResults()">Очистить результаты</button>
+
+        <h2>📊 Результаты</h2>
+        <div id="results"></div>
+    </div>
+
+    <!-- Подключаем конфигурацию -->
+    <script src="config.js"></script>
+    
+    <script>
+        let testResults = [];
+
+        // Проверка конфигурации при загрузке
+        window.addEventListener('load', function() {
+            checkConfig();
+        });
+
+        function checkConfig() {
+            const configDiv = document.getElementById('configInfo');
+            const statusDiv = document.querySelector('.status');
+            
+            if (window.GEMINI_CONFIG && window.GEMINI_CONFIG.apiKey) {
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = '<strong>✅ Статус:</strong> Конфигурация загружена успешно';
+                
+                configDiv.innerHTML = `
+                    <p><strong>API ключ:</strong></p>
+                    <div class="key-display">${window.GEMINI_CONFIG.apiKey}</div>
+                    <p><strong>Base URL:</strong> ${window.GEMINI_CONFIG.baseUrl}</p>
+                    <p><strong>GitHub конфигурация:</strong> ${window.GITHUB_CONFIG ? 'Загружена' : 'Не загружена'}</p>
+                `;
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '<strong>❌ Статус:</strong> Конфигурация не загружена';
+                
+                configDiv.innerHTML = `
+                    <p><strong>Ошибка:</strong> Файл config.js не загружен или не содержит GEMINI_CONFIG</p>
+                    <p>Убедитесь, что файл config.js существует и содержит правильную конфигурацию</p>
+                `;
+            }
+        }
+
+        function testConfig() {
+            addResult('🔧 Тест конфигурации', 'Проверяем загрузку конфигурации...');
+            
+            if (window.GEMINI_CONFIG) {
+                addResult('✅ Конфигурация загружена', `
+                    API ключ: ${window.GEMINI_CONFIG.apiKey ? 'Да' : 'Нет'}
+                    Base URL: ${window.GEMINI_CONFIG.baseUrl ? 'Да' : 'Нет'}
+                    GitHub конфигурация: ${window.GITHUB_CONFIG ? 'Да' : 'Нет'}
+                `);
+            } else {
+                addResult('❌ Конфигурация не загружена', 'Файл config.js не найден или содержит ошибки');
+            }
+        }
+
+        function testApiKey() {
+            addResult('🔑 Тест API ключа', 'Проверяем API ключ...');
+            
+            if (window.GEMINI_CONFIG && window.GEMINI_CONFIG.apiKey) {
+                const key = window.GEMINI_CONFIG.apiKey;
+                const keyLength = key.length;
+                const keyStart = key.substring(0, 10);
+                const keyEnd = key.substring(key.length - 4);
+                
+                addResult('✅ API ключ получен', `
+                    Длина: ${keyLength} символов
+                    Начало: ${keyStart}...
+                    Конец: ...${keyEnd}
+                    Формат: ${key.startsWith('AIzaSy') ? 'Правильный' : 'Неправильный'}
+                `);
+            } else {
+                addResult('❌ API ключ не найден', 'GEMINI_CONFIG.apiKey не определен');
+            }
+        }
+
+        async function testGeminiAPI() {
+            addResult('🌐 Тест Gemini API', 'Отправляем тестовый запрос...');
+            
+            if (!window.GEMINI_CONFIG || !window.GEMINI_CONFIG.apiKey) {
+                addResult('❌ API ключ не настроен', 'Сначала настройте конфигурацию');
+                return;
+            }
+
+            try {
+                const apiKey = window.GEMINI_CONFIG.apiKey;
+                const baseUrl = window.GEMINI_CONFIG.baseUrl;
+                const url = `${baseUrl}?key=${apiKey}`;
+                
+                addResult('📡 Отправка запроса', `URL: ${url}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: 'Привет! Это тестовый запрос. Ответь одним словом: "Работает"'
+                            }]
+                        }]
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const responseText = data.candidates[0].content.parts[0].text;
+                    
+                    addResult('✅ API запрос успешен', `
+                        Статус: ${response.status}
+                        Ответ: ${responseText}
+                        Время ответа: ${response.headers.get('x-response-time') || 'Не указано'}
+                    `);
+                } else {
+                    const errorData = await response.json();
+                    addResult('❌ API ошибка', `
+                        Статус: ${response.status}
+                        Ошибка: ${errorData.error?.message || response.statusText}
+                        Детали: ${JSON.stringify(errorData, null, 2)}
+                    `);
+                }
+            } catch (error) {
+                addResult('❌ Ошибка запроса', `
+                    Тип ошибки: ${error.name}
+                    Сообщение: ${error.message}
+                    Стек: ${error.stack}
+                `);
+            }
+        }
+
+        function addResult(title, content) {
+            const timestamp = new Date().toLocaleTimeString();
+            const result = {
+                id: Date.now(),
+                title: title,
+                content: content,
+                timestamp: timestamp
+            };
+            
+            testResults.push(result);
+            displayResults();
+        }
+
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            testResults.forEach(result => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result';
+                resultDiv.innerHTML = `
+                    <strong>${result.title}</strong> (${result.timestamp})
+                    ${result.content}
+                `;
+                resultsDiv.appendChild(resultDiv);
+            });
+        }
+
+        function clearResults() {
+            testResults = [];
+            displayResults();
+        }
+    </script>
+</body>
+</html> 

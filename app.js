@@ -1,7 +1,6 @@
-// Конфигурация API
-const API_CONFIG = {
-    // Зашифрованный API ключ (базовое шифрование для демо)
-    encryptedKey: 'QWl6YVN5REtWTTJxSlE0bFhmalpwUVZtOXlteGZfR2l3TWtEQ0hz',
+// Конфигурация API (используем из config.js)
+const API_CONFIG = window.GEMINI_CONFIG || {
+    apiKey: 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
 };
 
@@ -16,10 +15,21 @@ console.log('==========================');
 // Функция для получения API ключа
 function getApiKey() {
     try {
-        // Простое дешифрование (в реальном проекте используйте более сложные методы)
-        const decryptedKey = atob(API_CONFIG.encryptedKey);
-        console.log('API Key decrypted successfully');
-        return decryptedKey;
+        // Используем новый API ключ из конфигурации
+        if (API_CONFIG.apiKey) {
+            console.log('API Key loaded from config');
+            return API_CONFIG.apiKey;
+        }
+        
+        // Fallback на старый зашифрованный ключ
+        if (API_CONFIG.encryptedKey) {
+            const decryptedKey = atob(API_CONFIG.encryptedKey);
+            console.log('API Key decrypted from encrypted key');
+            return decryptedKey;
+        }
+        
+        console.error('API ключ не найден в конфигурации');
+        return null;
     } catch (error) {
         console.error('Ошибка получения API ключа:', error);
         return null;
@@ -51,11 +61,12 @@ document.addEventListener('DOMContentLoaded', function() {
 function testApiKey() {
     const apiKey = getApiKey();
     console.log('=== API Key Test ===');
-    console.log('Encrypted key:', API_CONFIG.encryptedKey);
-    console.log('Decrypted key:', apiKey);
+    console.log('Config loaded:', !!window.GEMINI_CONFIG);
+    console.log('API Key from config:', API_CONFIG.apiKey);
+    console.log('Current API key:', apiKey);
     console.log('Key length:', apiKey ? apiKey.length : 0);
-    console.log('Expected key: AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs');
-    console.log('Keys match:', apiKey === 'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs');
+    console.log('New key expected:', 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
+    console.log('Keys match:', apiKey === 'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4');
     console.log('===================');
 }
 
@@ -465,8 +476,8 @@ async function callGeminiAPI(prompt) {
     // Формируем URL с API ключом
     const url = `${API_CONFIG.baseUrl}?key=${apiKey}`;
     
-    console.log('API URL:', url);
-    console.log('API Key:', apiKey ? 'Получен' : 'Не получен');
+    console.log('🔑 API Key получен:', apiKey.substring(0, 10) + '...');
+    console.log('🌐 API URL:', url);
 
     const response = await fetch(url, {
         method: 'POST',
