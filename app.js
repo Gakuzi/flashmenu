@@ -3,94 +3,177 @@ const API_CONFIG = {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
 };
 
-// Получение API ключа
-function getApiKey() {
-    // Сначала пробуем из config.js (создается GitHub Actions)
+// Массив API ключей для ротации
+let apiKeys = [];
+let currentKeyIndex = 0;
+
+// Инициализация API ключей
+function initializeApiKeys() {
+    // Сначала пробуем загрузить из config.js (GitHub Actions)
     if (window.GEMINI_CONFIG && window.GEMINI_CONFIG.apiKey) {
-        return window.GEMINI_CONFIG.apiKey;
+        apiKeys.push(window.GEMINI_CONFIG.apiKey);
+    }
+    
+    // Добавляем дополнительные ключи из переменных окружения (если есть)
+    for (let i = 1; i <= 8; i++) {
+        const key = window[`GEMINI_API_KEY_${i}`];
+        if (key && key !== '[ВАШ_API_КЛЮЧ]' && !apiKeys.includes(key)) {
+            apiKeys.push(key);
+        }
     }
     
     // Fallback для разработки
-    return '[ВАШ_API_КЛЮЧ]';
+    if (apiKeys.length === 0) {
+        apiKeys.push('[ВАШ_API_КЛЮЧ]');
+    }
+    
+    console.log(`🔑 Загружено ${apiKeys.length} API ключей`);
+    apiKeys.forEach((key, index) => {
+        const maskedKey = key.substring(0, 10) + '...' + key.substring(key.length - 4);
+        console.log(`  ${index + 1}. ${maskedKey}`);
+    });
 }
 
-// Простой вызов Gemini API
+// Получение текущего API ключа
+function getCurrentApiKey() {
+    if (apiKeys.length === 0) {
+        initializeApiKeys();
+    }
+    return apiKeys[currentKeyIndex] || '[ВАШ_API_КЛЮЧ]';
+}
+
+// Переключение на следующий ключ
+function switchToNextKey() {
+    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+    console.log(`🔄 Переключаемся на ключ ${currentKeyIndex + 1}/${apiKeys.length}`);
+    return getCurrentApiKey();
+}
+
+// Сброс индекса ключа
+function resetKeyIndex() {
+    currentKeyIndex = 0;
+    console.log('🔄 Сброс индекса ключа на первый');
+}
+
+// Простой вызов Gemini API с ротацией ключей
 async function callGeminiAPI(prompt) {
-    const apiKey = getApiKey();
+    // Инициализируем ключи при первом вызове
+    if (apiKeys.length === 0) {
+        initializeApiKeys();
+    }
     
-    // Если нет реального ключа, используем Mock данные
-    if (!apiKey || apiKey === '[ВАШ_API_КЛЮЧ]') {
-        console.log('🎭 Используем Mock данные (нет API ключа)');
+    // Если нет реальных ключей, используем Mock данные
+    if (apiKeys.length === 1 && apiKeys[0] === '[ВАШ_API_КЛЮЧ]') {
+        console.log('🎭 Используем Mock данные (нет API ключей)');
         return generateMockMenu(prompt);
     }
 
-    try {
-        console.log('🔑 Вызываем Gemini API...');
+    // Пробуем все ключи по очереди
+    const maxAttempts = apiKeys.length;
+    let attempt = 0;
+    
+    while (attempt < maxAttempts) {
+        const apiKey = getCurrentApiKey();
         
-        const url = `${API_CONFIG.baseUrl}?key=${apiKey}`;
-        
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
-                }],
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 8192,
-                },
-                safetySettings: [
-                    {
-                        category: "HARM_CATEGORY_HARASSMENT",
-                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                    },
-                    {
-                        category: "HARM_CATEGORY_HATE_SPEECH",
-                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                    },
-                    {
-                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                    },
-                    {
-                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-                    }
-                ]
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('❌ API Error:', errorData);
-            
-            // Если API недоступен, используем Mock
-            if (errorData.error?.message?.includes('quota') || 
-                errorData.error?.message?.includes('location') ||
-                response.status === 403) {
-                console.log('🔄 API недоступен, используем Mock данные');
-                return generateMockMenu(prompt);
-            }
-            
-            throw new Error(`Ошибка API: ${errorData.error?.message || response.statusText}`);
+        // Пропускаем placeholder ключи
+        if (apiKey === '[ВАШ_API_КЛЮЧ]') {
+            console.log(`⏭️ Пропускаем placeholder ключ ${currentKeyIndex + 1}`);
+            switchToNextKey();
+            attempt++;
+            continue;
         }
-
-        const data = await response.json();
-        console.log('✅ Ответ получен от Gemini API');
-        return data.candidates[0].content.parts[0].text;
         
-    } catch (error) {
-        console.error('❌ Ошибка API:', error.message);
-        console.log('🔄 Используем Mock данные');
-        return generateMockMenu(prompt);
+        try {
+            console.log(`🔑 Попытка ${attempt + 1}/${maxAttempts} с ключом ${currentKeyIndex + 1}/${apiKeys.length}`);
+            
+            const url = `${API_CONFIG.baseUrl}?key=${apiKey}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: prompt
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 8192,
+                    },
+                    safetySettings: [
+                        {
+                            category: "HARM_CATEGORY_HARASSMENT",
+                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                        },
+                        {
+                            category: "HARM_CATEGORY_HATE_SPEECH",
+                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                        },
+                        {
+                            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                        },
+                        {
+                            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                        }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`❌ Ошибка с ключом ${currentKeyIndex + 1}:`, errorData);
+                
+                // Проверяем тип ошибки
+                const errorMessage = errorData.error?.message || '';
+                
+                if (errorMessage.includes('quota') || 
+                    errorMessage.includes('exceeded') ||
+                    errorMessage.includes('billing') ||
+                    response.status === 429) {
+                    
+                    console.log(`🔄 Ключ ${currentKeyIndex + 1} превысил лимит, пробуем следующий...`);
+                    switchToNextKey();
+                    attempt++;
+                    continue;
+                }
+                
+                if (errorMessage.includes('location') || response.status === 403) {
+                    console.log(`🔄 Ключ ${currentKeyIndex + 1} недоступен в регионе, пробуем следующий...`);
+                    switchToNextKey();
+                    attempt++;
+                    continue;
+                }
+                
+                // Другие ошибки - пробуем следующий ключ
+                console.log(`🔄 Ошибка с ключом ${currentKeyIndex + 1}, пробуем следующий...`);
+                switchToNextKey();
+                attempt++;
+                continue;
+            }
+
+            const data = await response.json();
+            console.log(`✅ Ответ получен от Gemini API с ключом ${currentKeyIndex + 1}`);
+            resetKeyIndex(); // Сбрасываем на первый ключ при успехе
+            return data.candidates[0].content.parts[0].text;
+            
+        } catch (error) {
+            console.error(`❌ Ошибка сети с ключом ${currentKeyIndex + 1}:`, error.message);
+            switchToNextKey();
+            attempt++;
+        }
     }
+    
+    // Если все ключи не сработали, используем Mock
+    console.log('🔄 Все API ключи не сработали, используем Mock данные');
+    resetKeyIndex();
+    return generateMockMenu(prompt);
 }
 
 // Генерация Mock меню (работает без сервера)
@@ -290,7 +373,7 @@ async function initSupabase() {
 
 // Тестирование API ключа
 function testApiKey() {
-    const apiKey = getApiKey();
+    const apiKey = getCurrentApiKey();
     console.log('=== API Key Test ===');
     console.log('Config loaded:', !!window.GEMINI_CONFIG);
     console.log('API Key from config:', API_CONFIG.apiKey);
