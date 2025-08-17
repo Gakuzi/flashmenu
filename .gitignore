@@ -31,6 +31,8 @@ secrets.js
 api-keys.js
 *.key
 *.pem
+*.token
+github-token.txt
 
 # Кэш браузера
 *.cache
