@@ -78,7 +78,13 @@ async function initSupabase() {
     console.log('🚀 Начинаем инициализацию Supabase...');
     console.log('SUPABASE_CONFIG:', window.SUPABASE_CONFIG);
     
-    if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url && window.SUPABASE_CONFIG.anonKey) {
+    // Проверяем, есть ли реальная конфигурация Supabase (не заглушки)
+    if (window.SUPABASE_CONFIG && 
+        window.SUPABASE_CONFIG.url && 
+        window.SUPABASE_CONFIG.anonKey &&
+        window.SUPABASE_CONFIG.url !== 'https://your-project.supabase.co' &&
+        window.SUPABASE_CONFIG.anonKey !== 'your-anon-key-here') {
+        
         try {
             console.log('🔧 Создаем SupabaseClient...');
             console.log('SupabaseClient доступен:', typeof SupabaseClient);
@@ -107,7 +113,7 @@ async function initSupabase() {
             console.error('❌ Ошибка инициализации Supabase:', error);
         }
     } else {
-        console.log('⚠️ SUPABASE_CONFIG не найден или неполный');
+        console.log('⚠️ SUPABASE_CONFIG не настроен или содержит заглушки');
         console.log('URL:', window.SUPABASE_CONFIG?.url);
         console.log('Key:', window.SUPABASE_CONFIG?.anonKey ? 'Есть' : 'Нет');
     }
@@ -131,28 +137,42 @@ function testApiKey() {
 
 // Проверка авторизации
 async function checkAuth() {
-    if (supabaseClient) {
+    console.log('🔐 Проверяем авторизацию...');
+    console.log('supabaseClient:', supabaseClient);
+    
+    if (supabaseClient && supabaseClient.initialized) {
         try {
+            console.log('🚀 Проверяем пользователя в Supabase...');
             // Проверяем текущего пользователя в Supabase
             const user = await supabaseClient.getCurrentUser();
             if (user) {
+                console.log('✅ Пользователь найден в Supabase:', user);
                 currentUser = user;
                 showApp();
                 await loadUserData();
                 return;
             }
         } catch (error) {
-            console.error('Ошибка проверки авторизации Supabase:', error);
+            console.error('❌ Ошибка проверки авторизации Supabase:', error);
         }
     }
     
     // Fallback на localStorage
+    console.log('💾 Проверяем localStorage...');
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        showApp();
-        loadUserData();
+        try {
+            currentUser = JSON.parse(savedUser);
+            console.log('✅ Пользователь найден в localStorage:', currentUser);
+            showApp();
+            loadUserData();
+        } catch (error) {
+            console.error('❌ Ошибка парсинга пользователя из localStorage:', error);
+            localStorage.removeItem('currentUser');
+            showAuth();
+        }
     } else {
+        console.log('👤 Пользователь не найден, показываем форму авторизации');
         showAuth();
     }
 }
@@ -400,8 +420,18 @@ async function handleRegister(e) {
     console.log('🔑 Пароль:', password ? '***' : 'пустой');
     console.log('🔑 Подтверждение:', confirmPassword ? '***' : 'пустой');
     
+    if (!email || !password || !confirmPassword) {
+        showMessage('Заполните все поля', 'error');
+        return;
+    }
+    
     if (password !== confirmPassword) {
         showMessage('Пароли не совпадают', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showMessage('Пароль должен быть не менее 6 символов', 'error');
         return;
     }
     
@@ -416,9 +446,11 @@ async function handleRegister(e) {
             await loadUserData();
             showMessage('Аккаунт успешно создан!', 'success');
         } else {
-            console.log('💾 Fallback на localStorage...');
+            console.log('💾 Регистрация через localStorage...');
             // Fallback на localStorage
             const users = JSON.parse(localStorage.getItem('users') || '[]');
+            console.log('👥 Существующие пользователи:', users);
+            
             if (users.find(user => user.email === email)) {
                 showMessage('Пользователь с таким email уже существует', 'error');
                 return;
@@ -431,9 +463,11 @@ async function handleRegister(e) {
                 createdAt: new Date().toISOString()
             };
             
+            console.log('🆕 Новый пользователь:', newUser);
             users.push(newUser);
             localStorage.setItem('users', JSON.stringify(users));
             
+            console.log('💾 Пользователи сохранены в localStorage');
             showMessage('Аккаунт успешно создан! Теперь войдите в систему', 'success');
             setTimeout(() => showLoginForm(), 2000);
         }
@@ -447,11 +481,22 @@ async function handleRegister(e) {
 async function handleLogin(e) {
     e.preventDefault();
     
+    console.log('🔐 Обработка входа...');
+    
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     
+    console.log('📧 Email:', email);
+    console.log('🔑 Пароль:', password ? '***' : 'пустой');
+    
+    if (!email || !password) {
+        showMessage('Заполните все поля', 'error');
+        return;
+    }
+    
     try {
-        if (supabaseClient) {
+        if (supabaseClient && supabaseClient.initialized) {
+            console.log('🚀 Вход через Supabase...');
             // Вход через Supabase
             const user = await supabaseClient.loginUser(email, password);
             currentUser = user;
@@ -459,22 +504,27 @@ async function handleLogin(e) {
             await loadUserData();
             showMessage(`Добро пожаловать, ${user.email}!`, 'success');
         } else {
+            console.log('💾 Вход через localStorage...');
             // Fallback на localStorage
             const users = JSON.parse(localStorage.getItem('users') || '[]');
+            console.log('👥 Пользователи в localStorage:', users);
+            
             const user = users.find(u => u.email === email && u.password === btoa(password));
             
             if (user) {
+                console.log('✅ Пользователь найден:', user);
                 currentUser = user;
                 localStorage.setItem('currentUser', JSON.stringify(user));
                 showApp();
                 loadUserData();
                 showMessage(`Добро пожаловать, ${user.email}!`, 'success');
             } else {
+                console.log('❌ Пользователь не найден');
                 showMessage('Неверный email или пароль', 'error');
             }
         }
     } catch (error) {
-        console.error('Ошибка входа:', error);
+        console.error('❌ Ошибка входа:', error);
         showMessage(`Ошибка входа: ${error.message}`, 'error');
     }
 }
@@ -497,10 +547,16 @@ async function logout() {
 
 // Загрузка данных пользователя
 async function loadUserData() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.log('❌ Нет текущего пользователя для загрузки данных');
+        return;
+    }
+    
+    console.log('📊 Загружаем данные для пользователя:', currentUser.id);
     
     try {
-        if (supabaseClient) {
+        if (supabaseClient && supabaseClient.initialized) {
+            console.log('🚀 Загрузка данных из Supabase...');
             // Загрузка данных из Supabase
             const userData = await supabaseClient.loadUserData(currentUser.id);
             if (userData) {
@@ -510,6 +566,7 @@ async function loadUserData() {
                 menus = userData.menus || [];
                 currentProducts = userData.currentProducts || [];
                 boughtProducts = userData.boughtProducts || [];
+                console.log('✅ Данные загружены из Supabase');
             }
         } else {
             // Fallback на localStorage
@@ -522,6 +579,10 @@ async function loadUserData() {
                 ]);
                 menus = safeJsonParse(localStorage.getItem(`${userKey}_menus`), []);
                 currentProducts = safeJsonParse(localStorage.getItem(`${userKey}_currentProducts`), []);
+                
+                console.log('✅ Данные загружены из localStorage');
+                console.log('👥 Пользователи:', JSON.parse(localStorage.getItem('users') || '[]'));
+                console.log('🔐 Текущий пользователь:', localStorage.getItem('currentUser'));
             } catch (error) {
                 console.error('Ошибка загрузки данных пользователя:', error);
                 resetUserData(userKey);
@@ -685,29 +746,46 @@ async function generateMenu(e) {
     showMessage('Генерация меню...', 'success');
 
     try {
+        console.log('🚀 Начинаем генерацию меню...');
+        console.log('💰 Бюджет:', budget, '₽');
+        console.log('📅 Дни:', days);
+        console.log('🍽️ Прием пищи:', meal);
+        console.log('📍 Начало:', start);
+        
         // Генерация меню
         const menuPrompt = `Составь меню на ${days} дней для ${meal} с бюджетом ${budget} ₽, используя продукты из каталога Макси. Учитывай имеющиеся продукты: ${availableIngredients.join(', ')}. Формат: JSON с полями day, meal, recipe, ingredients [{ name, qty, unit }], cookingTime. Верни только JSON в кодовых блоках.`;
         
+        console.log('🤖 Отправляем запрос на генерацию меню...');
         const menuResponse = await callGeminiAPI(menuPrompt);
-        const menuData = parseJSONResponse(menuResponse);
+        let menuData = parseJSONResponse(menuResponse);
+        
+        console.log('📋 Получены данные меню:', menuData);
         
         if (!menuData || !Array.isArray(menuData)) {
             throw new Error('Неверный формат ответа API');
         }
 
         // Получение цен для продуктов
-        const productsWithPrices = await getProductsWithPrices(menuData, budget);
+        console.log('💰 Получаем цены для продуктов...');
+        let productsWithPrices = await getProductsWithPrices(menuData, budget);
+        
+        console.log('💵 Стоимость продуктов:', productsWithPrices.totalCost, '₽');
         
         if (productsWithPrices.totalCost > budget) {
+            console.log('⚠️ Превышение бюджета, пытаемся скорректировать...');
             // Попытка корректировки меню
             const adjustedMenu = await adjustMenuForBudget(menuData, budget, productsWithPrices.totalCost);
             if (adjustedMenu) {
+                console.log('✅ Меню скорректировано');
                 menuData = adjustedMenu;
                 productsWithPrices = await getProductsWithPrices(menuData, budget);
+                console.log('💵 Новая стоимость:', productsWithPrices.totalCost, '₽');
             }
         }
 
         // Сохранение меню
+        console.log('💾 Сохраняем сгенерированное меню...');
+        
         const menuId = Date.now();
         const newMenu = {
             id: menuId,
@@ -720,13 +798,21 @@ async function generateMenu(e) {
             createdAt: new Date().toISOString()
         };
 
+        console.log('📋 Новое меню:', newMenu);
+        
         menus.push(newMenu);
         currentMenu = newMenu;
         currentProducts = productsWithPrices.products;
+        
+        console.log('📊 Обновляем данные приложения...');
+        console.log('🍽️ Меню:', menus.length, 'шт');
+        console.log('🛒 Продукты:', currentProducts.length, 'шт');
 
         saveUserData();
         updateMenuSelector();
         showMessage('Меню успешно сгенерировано!', 'success');
+        
+        console.log('✅ Меню успешно сгенерировано и сохранено');
         
         // Переключение на вкладку покупок
         setTimeout(() => switchTab('shopping'), 1000);
@@ -739,8 +825,82 @@ async function generateMenu(e) {
     }
 }
 
-// Вызов Gemini API
+// Вызов Gemini API через локальный прокси
 async function callGeminiAPI(prompt) {
+    try {
+        console.log('🤖 Отправляем запрос через локальный прокси...');
+        
+        // Сначала пробуем основной прокси
+        const proxyUrl = 'http://localhost:3000/api/gemini';
+        
+        const response = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prompt })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ Прокси API Error:', errorData);
+            
+            // Если прокси недоступен, пробуем Mock API
+            if (response.status === 0 || response.status === 500) {
+                console.log('🔄 Прокси недоступен, пробуем Mock API...');
+                return await callMockAPI(prompt);
+            }
+            
+            // Если все API ключи не сработали, используем Mock API
+            if (errorData.error === 'All API keys failed') {
+                console.log('🔄 Все API ключи заблокированы, используем Mock API...');
+                return await callMockAPI(prompt);
+            }
+            
+            throw new Error(`Ошибка прокси API: ${errorData.error || response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Ответ получен через прокси');
+        return data.candidates[0].content.parts[0].text;
+        
+    } catch (error) {
+        console.warn('⚠️ Ошибка прокси, пробуем Mock API:', error.message);
+        return await callMockAPI(prompt);
+    }
+}
+
+// Вызов Mock API (fallback)
+async function callMockAPI(prompt) {
+    try {
+        console.log('🎭 Используем Mock API...');
+        
+        const mockUrl = 'http://localhost:3000/api/gemini-mock';
+        
+        const response = await fetch(mockUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prompt })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Mock API Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Ответ получен от Mock API');
+        return data.candidates[0].content.parts[0].text;
+        
+    } catch (error) {
+        console.error('❌ Mock API тоже не работает:', error.message);
+        throw new Error('Все API недоступны. Проверьте подключение к серверу.');
+    }
+}
+
+// Прямой вызов Gemini API (fallback)
+async function callGeminiAPIDirect(prompt) {
     const apiKey = getApiKey();
     if (!apiKey) {
         throw new Error('Не удалось получить API ключ');
@@ -749,7 +909,7 @@ async function callGeminiAPI(prompt) {
     // Формируем URL с API ключом
     const url = `${API_CONFIG.baseUrl}?key=${apiKey}`;
     
-    console.log('🔑 API Key получен:', apiKey.substring(0, 10) + '...');
+    console.log('🔑 Прямой вызов Gemini API...');
     console.log('🌐 API URL:', url);
 
     const response = await fetch(url, {
@@ -768,7 +928,7 @@ async function callGeminiAPI(prompt) {
 
     if (!response.ok) {
         const errorData = await response.json();
-        console.error('API Error Response:', errorData);
+        console.error('❌ Прямой API Error:', errorData);
         throw new Error(`Ошибка API: ${errorData.error?.message || response.statusText}`);
     }
 
@@ -779,37 +939,80 @@ async function callGeminiAPI(prompt) {
 // Парсинг JSON ответа
 function parseJSONResponse(response) {
     try {
+        console.log('🔍 Парсим ответ API:', response.substring(0, 200) + '...');
+        
+        if (!response || typeof response !== 'string') {
+            throw new Error('Ответ API не является строкой');
+        }
+        
+        // Ищем JSON в кодовых блоках
         const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
         if (jsonMatch) {
+            console.log('📋 Найден JSON в кодовом блоке');
             return JSON.parse(jsonMatch[1]);
         }
+        
+        // Пытаемся распарсить как обычный JSON
+        console.log('📋 Пытаемся распарсить как обычный JSON');
         return JSON.parse(response);
     } catch (error) {
-        throw new Error('Не удалось распарсить ответ API');
+        console.error('❌ Ошибка парсинга JSON:', error);
+        console.error('📄 Ответ API:', response);
+        throw new Error(`Не удалось распарсить ответ API: ${error.message}`);
     }
 }
 
 // Получение цен для продуктов
 async function getProductsWithPrices(menuData, budget) {
-    const allIngredients = new Map();
+    const allIngredients = [];
     const products = [];
     let totalCost = 0;
 
-    // Сбор всех ингредиентов
-    menuData.forEach(item => {
-        if (item.ingredients) {
-            item.ingredients.forEach(ingredient => {
-                const key = ingredient.name.toLowerCase();
-                if (!allIngredients.has(key)) {
-                    allIngredients.set(key, ingredient);
+    console.log('📋 Анализируем меню для сбора ингредиентов...');
+    console.log('🍽️ Количество блюд:', menuData.length);
+
+    // Сбор всех ингредиентов с учетом количества
+    menuData.forEach((item, itemIndex) => {
+        console.log(`📝 Блюдо ${itemIndex + 1}: ${item.meal} - ${item.recipe}`);
+        
+        if (item.ingredients && Array.isArray(item.ingredients)) {
+            item.ingredients.forEach((ingredient, ingIndex) => {
+                console.log(`  🥄 Ингредиент ${ingIndex + 1}: ${ingredient.name} ${ingredient.qty}${ingredient.unit}`);
+                
+                // Проверяем, есть ли уже такой ингредиент
+                const existingIndex = allIngredients.findIndex(ing => 
+                    ing.name.toLowerCase() === ingredient.name.toLowerCase()
+                );
+                
+                if (existingIndex >= 0) {
+                    // Добавляем количество к существующему ингредиенту
+                    allIngredients[existingIndex].qty += ingredient.qty || 1;
+                    console.log(`  ➕ Добавлено к существующему: ${allIngredients[existingIndex].qty}${allIngredients[existingIndex].unit}`);
+                } else {
+                    // Добавляем новый ингредиент
+                    allIngredients.push({
+                        name: ingredient.name,
+                        qty: ingredient.qty || 1,
+                        unit: ingredient.unit || 'шт'
+                    });
+                    console.log(`  🆕 Новый ингредиент добавлен`);
                 }
             });
         }
     });
 
+    console.log('📊 Всего уникальных ингредиентов:', allIngredients.length);
+    allIngredients.forEach((ing, index) => {
+        console.log(`  ${index + 1}. ${ing.name}: ${ing.qty}${ing.unit}`);
+    });
+
     // Получение цен по одному продукту
-    for (const [key, ingredient] of allIngredients) {
+    for (let i = 0; i < allIngredients.length; i++) {
+        const ingredient = allIngredients[i];
+        
         try {
+            console.log(`💰 [${i + 1}/${allIngredients.length}] Получаем цену для: ${ingredient.name}`);
+            
             const pricePrompt = `Найди цену для продукта "${ingredient.name}" в каталоге Макси. Формат ответа: JSON с полями name, pack, price. Если продукт не найден, предложи аналог. Верни только JSON.`;
             
             const priceResponse = await callGeminiAPI(pricePrompt);
@@ -820,29 +1023,39 @@ async function getProductsWithPrices(menuData, budget) {
                     name: priceData.name,
                     pack: priceData.pack,
                     price: parseFloat(priceData.price),
-                    qty: ingredient.qty || 1,
-                    unit: ingredient.unit || 'шт',
-                    sum: parseFloat(priceData.price) * (ingredient.qty || 1)
+                    qty: ingredient.qty,
+                    unit: ingredient.unit,
+                    sum: parseFloat(priceData.price) * ingredient.qty
                 };
+                
+                console.log(`✅ Цена получена: ${product.name} - ${product.price} ₽ за ${product.pack}`);
+                console.log(`   Итого: ${product.qty} × ${product.price} ₽ = ${product.sum} ₽`);
                 
                 products.push(product);
                 totalCost += product.sum;
+            } else {
+                throw new Error('Неверный формат данных о цене');
             }
         } catch (error) {
-            console.warn(`Ошибка получения цены для ${ingredient.name}:`, error);
+            console.warn(`⚠️ Ошибка получения цены для ${ingredient.name}:`, error);
+            console.log(`💡 Используем примерную цену для ${ingredient.name}`);
+            
             // Добавляем продукт с примерной ценой
             const product = {
                 name: ingredient.name,
                 pack: '~',
-                price: 100,
-                qty: ingredient.qty || 1,
-                unit: ingredient.unit || 'шт',
-                sum: 100 * (ingredient.qty || 1)
+                price: 150, // Более реалистичная цена
+                qty: ingredient.qty,
+                unit: ingredient.unit,
+                sum: 150 * ingredient.qty
             };
             products.push(product);
             totalCost += product.sum;
         }
     }
+
+    console.log('💰 Итоговая стоимость:', totalCost, '₽');
+    console.log('🛒 Количество продуктов:', products.length);
 
     return { products, totalCost };
 }
@@ -1045,14 +1258,34 @@ function updateMenuSelector() {
     const selector = document.getElementById('menuSelector');
     if (!selector) return;
     
+    console.log('🔄 Обновляем селектор меню...');
+    console.log('📋 Доступные меню:', menus);
+    
     selector.innerHTML = '<option value="">Выберите меню...</option>';
     
-    menus.forEach(menu => {
+    if (menus.length === 0) {
+        console.log('⚠️ Нет доступных меню');
+        return;
+    }
+    
+    menus.forEach((menu, index) => {
         const option = document.createElement('option');
         option.value = menu.id;
-        option.textContent = `Меню на ${menu.days} дней (${menu.meal}, ${menu.budget} ₽)`;
+        
+        // Форматируем дату создания
+        const createdDate = new Date(menu.createdAt);
+        const dateStr = createdDate.toLocaleDateString('ru-RU');
+        
+        // Подсчитываем количество блюд
+        const totalDishes = menu.items ? menu.items.length : 0;
+        
+        option.textContent = `Меню на ${menu.days} дней (${menu.meal}) - ${totalDishes} блюд, ${menu.totalCost} ₽ - ${dateStr}`;
         selector.appendChild(option);
+        
+        console.log(`📝 Меню ${index + 1}: ${option.textContent}`);
     });
+    
+    console.log('✅ Селектор меню обновлен');
 }
 
 // Загрузка выбранного меню
@@ -1073,29 +1306,64 @@ function renderMenuItems() {
         return;
     }
 
-    menuItems.innerHTML = '';
-    currentMenu.items.forEach((item, index) => {
-        const recipeCard = document.createElement('div');
-        recipeCard.className = 'recipe-card';
-        
-        const ingredientsList = item.ingredients ? item.ingredients.map(ing => 
-            `${ing.name} ${ing.qty} ${ing.unit}`
-        ).join(', ') : '';
+    console.log('🍽️ Рендерим элементы меню...');
+    console.log('📋 Текущее меню:', currentMenu);
+    console.log('🥘 Количество блюд:', currentMenu.items ? currentMenu.items.length : 0);
 
-        recipeCard.innerHTML = `
-            <div class="recipe-header">
-                <div class="recipe-title">${item.day} - ${item.meal}</div>
-                ${item.cookingTime ? `<div class="recipe-time">${item.cookingTime} мин</div>` : ''}
-            </div>
-            <div class="recipe-ingredients">
-                <strong>Ингредиенты:</strong> ${ingredientsList}
-            </div>
-            <p>${item.recipe}</p>
-            ${item.cookingTime ? `<button class="btn btn-primary" onclick="startTimer(${item.cookingTime})">Запустить таймер</button>` : ''}
-        `;
-        
-        menuItems.appendChild(recipeCard);
+    menuItems.innerHTML = '';
+    
+    if (!currentMenu.items || currentMenu.items.length === 0) {
+        menuItems.innerHTML = '<p>В выбранном меню нет блюд</p>';
+        return;
+    }
+
+    // Группируем блюда по дням
+    const dishesByDay = {};
+    currentMenu.items.forEach(item => {
+        if (!dishesByDay[item.day]) {
+            dishesByDay[item.day] = [];
+        }
+        dishesByDay[item.day].push(item);
     });
+
+    console.log('📅 Блюда по дням:', dishesByDay);
+
+    // Рендерим каждый день
+    Object.keys(dishesByDay).forEach(day => {
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'day-header';
+        dayHeader.innerHTML = `<h3>${day}</h3>`;
+        menuItems.appendChild(dayHeader);
+
+        // Рендерим блюда для этого дня
+        dishesByDay[day].forEach((item, index) => {
+            const recipeCard = document.createElement('div');
+            recipeCard.className = 'recipe-card';
+            
+            const ingredientsList = item.ingredients ? item.ingredients.map(ing => 
+                `${ing.name} ${ing.qty} ${ing.unit}`
+            ).join(', ') : '';
+
+            recipeCard.innerHTML = `
+                <div class="recipe-header">
+                    <div class="recipe-title">${item.meal}</div>
+                    ${item.cookingTime ? `<div class="recipe-time">⏱️ ${item.cookingTime} мин</div>` : ''}
+                </div>
+                <div class="recipe-ingredients">
+                    <strong>🥄 Ингредиенты:</strong> ${ingredientsList}
+                </div>
+                <div class="recipe-description">
+                    <strong>📝 Рецепт:</strong> ${item.recipe}
+                </div>
+                ${item.cookingTime ? `<button class="btn btn-primary" onclick="startTimer(${item.cookingTime})">⏰ Запустить таймер</button>` : ''}
+            `;
+            
+            menuItems.appendChild(recipeCard);
+            console.log(`✅ Блюдо ${index + 1} для ${day}: ${item.meal} - ${item.recipe}`);
+        });
+    });
+
+    console.log('✅ Элементы меню отрендерены');
 }
 
 // Запуск таймера
