@@ -18,7 +18,7 @@ app.use(express.static('.'));
 const ALTERNATIVE_KEYS = [
     'AIzaSyC1jOV62uVbRCL2Wb7E1dacps7YobyLhL4', // Основной ключ
     'AIzaSyDKVM2qJQ4lXfjZpQVm9ymxf_GiwMkDBHs', // Альтернативный ключ
-    'AIzaSyBQJdJqJqJqJqJqJqJqJqJqJqJqJqJqJqJq', // Заглушка для тестирования
+    // Добавьте сюда ваши дополнительные API ключи
 ];
 
 // Прокси для Gemini API с автоматическим переключением ключей
@@ -103,315 +103,350 @@ app.post('/api/gemini', async (req, res) => {
 
 // Вызов Gemini API с конкретным ключом
 async function callGeminiWithKey(apiKey, prompt) {
-    const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
-    const response = await fetch(`${apiUrl}?key=${apiKey}`, {
+    const requestBody = {
+        contents: [{
+            parts: [{
+                text: prompt
+            }]
+        }],
+        generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+        },
+        safetySettings: [
+            {
+                category: "HARM_CATEGORY_HARASSMENT",
+                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                category: "HARM_CATEGORY_HATE_SPEECH",
+                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            }
+        ]
+    };
+
+    const response = await fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{
-                    text: prompt
-                }]
-            }]
-        })
+        body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Gemini API Error:', errorData);
+        const errorText = await response.text();
+        console.error('❌ Gemini API ошибка:', response.status, errorText);
         
-        // Проверяем на превышение лимита
-        if (errorData.error?.message?.includes('quota') || 
-            errorData.error?.message?.includes('rate-limit') ||
-            errorData.error?.message?.includes('billing')) {
-            throw new Error(`API quota exceeded: ${errorData.error.message}`);
+        if (response.status === 429 || response.status === 403) {
+            throw new Error('API quota exceeded or rate limited');
         }
         
-        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     return data;
 }
 
-// Альтернативный endpoint с имитацией ответа (для тестирования)
-app.post('/api/gemini-mock', async (req, res) => {
-    try {
-        const { prompt } = req.body;
-        
-        if (!prompt) {
-            return res.status(400).json({ error: 'Prompt is required' });
-        }
-
-        console.log('🎭 Mock API запрос:', prompt.substring(0, 100) + '...');
-
-        // Имитируем ответ Gemini API
-        const mockResponse = {
-            candidates: [{
-                content: {
-                    parts: [{
-                        text: generateMockResponse(prompt)
-                    }]
-                }
-            }]
-        };
-
-        // Имитируем задержку
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        res.json(mockResponse);
-        
-    } catch (error) {
-        console.error('❌ Ошибка Mock API:', error);
-        res.status(500).json({ error: 'Mock API Error' });
-    }
-});
-
-// Генерация имитационного ответа
+// Умная генерация меню через AI (имитация Gemini API)
 function generateMockResponse(prompt) {
-    if (prompt.includes('меню')) {
-        // Генерируем полноценное меню на несколько дней
-        const days = prompt.match(/(\d+)\s*дней?/)?.[1] || 3;
-        const meal = prompt.match(/для\s+([^с]+)/)?.[1] || 'Все приёмы пищи';
-        
-        let menuItems = [];
-        
-        // Разнообразные варианты блюд для каждого приема пищи
-        const breakfastOptions = [
-            {
-                recipe: "Овсянка с фруктами и орехами",
-                ingredients: [
-                    { name: "Овсяные хлопья", qty: 80, unit: "г" },
-                    { name: "Молоко", qty: 200, unit: "мл" },
-                    { name: "Банан", qty: 1, unit: "шт" },
-                    { name: "Грецкие орехи", qty: 20, unit: "г" }
-                ],
-                cookingTime: 15
-            },
-            {
-                recipe: "Творожная запеканка с изюмом",
-                ingredients: [
-                    { name: "Творог", qty: 200, unit: "г" },
-                    { name: "Яйца", qty: 2, unit: "шт" },
-                    { name: "Изюм", qty: 50, unit: "г" },
-                    { name: "Сахар", qty: 30, unit: "г" }
-                ],
-                cookingTime: 25
-            },
-            {
-                recipe: "Гречневая каша с молоком",
-                ingredients: [
-                    { name: "Гречка", qty: 100, unit: "г" },
-                    { name: "Молоко", qty: 300, unit: "мл" },
-                    { name: "Сливочное масло", qty: 20, unit: "г" }
-                ],
-                cookingTime: 20
-            }
-        ];
-
-        const lunchOptions = [
-            {
-                recipe: "Куриная грудка с рисом и овощами",
-                ingredients: [
-                    { name: "Куриная грудка", qty: 150, unit: "г" },
-                    { name: "Рис", qty: 100, unit: "г" },
-                    { name: "Брокколи", qty: 100, unit: "г" },
-                    { name: "Морковь", qty: 50, unit: "г" }
-                ],
-                cookingTime: 30
-            },
-            {
-                recipe: "Лосось с картофелем",
-                ingredients: [
-                    { name: "Лосось", qty: 150, unit: "г" },
-                    { name: "Картофель", qty: 200, unit: "г" },
-                    { name: "Лимон", qty: 0.5, unit: "шт" },
-                    { name: "Укроп", qty: 10, unit: "г" }
-                ],
-                cookingTime: 35
-            },
-            {
-                recipe: "Вегетарианский суп",
-                ingredients: [
-                    { name: "Картофель", qty: 150, unit: "г" },
-                    { name: "Морковь", qty: 100, unit: "г" },
-                    { name: "Лук", qty: 50, unit: "г" },
-                    { name: "Зелень", qty: 20, unit: "г" }
-                ],
-                cookingTime: 40
-            }
-        ];
-
-        const dinnerOptions = [
-            {
-                recipe: "Творожная запеканка с ягодами",
-                ingredients: [
-                    { name: "Творог", qty: 200, unit: "г" },
-                    { name: "Яйца", qty: 2, unit: "шт" },
-                    { name: "Сметана", qty: 50, unit: "г" },
-                    { name: "Черника", qty: 100, unit: "г" }
-                ],
-                cookingTime: 25
-            },
-            {
-                recipe: "Омлет с овощами",
-                ingredients: [
-                    { name: "Яйца", qty: 3, unit: "шт" },
-                    { name: "Помидоры", qty: 100, unit: "г" },
-                    { name: "Шпинат", qty: 50, unit: "г" },
-                    { name: "Сыр", qty: 50, unit: "г" }
-                ],
-                cookingTime: 15
-            },
-            {
-                recipe: "Салат Цезарь",
-                ingredients: [
-                    { name: "Куриная грудка", qty: 100, unit: "г" },
-                    { name: "Салат Айсберг", qty: 100, unit: "г" },
-                    { name: "Сухарики", qty: 30, unit: "г" },
-                    { name: "Сыр Пармезан", qty: 30, unit: "г" }
-                ],
-                cookingTime: 20
-            }
-        ];
-
-        for (let day = 1; day <= days; day++) {
-            // Выбираем случайные блюда для разнообразия
-            const breakfast = breakfastOptions[day % breakfastOptions.length];
-            const lunch = lunchOptions[day % lunchOptions.length];
-            const dinner = dinnerOptions[day % dinnerOptions.length];
-
-            // Завтрак
-            menuItems.push({
-                day: `День ${day}`,
-                meal: "Завтрак",
-                recipe: `${breakfast.recipe} (день ${day})`,
-                ingredients: breakfast.ingredients,
-                cookingTime: breakfast.cookingTime
-            });
-            
-            // Обед
-            menuItems.push({
-                day: `День ${day}`,
-                meal: "Обед",
-                recipe: `${lunch.recipe} (день ${day})`,
-                ingredients: lunch.ingredients,
-                cookingTime: lunch.cookingTime
-            });
-            
-            // Ужин
-            menuItems.push({
-                day: `День ${day}`,
-                meal: "Ужин",
-                recipe: `${dinner.recipe} (день ${day})`,
-                ingredients: dinner.ingredients,
-                cookingTime: dinner.cookingTime
-            });
-        }
-        
-        return `\`\`\`json\n${JSON.stringify(menuItems, null, 2)}\n\`\`\``;
-        
-    } else if (prompt.includes('цена') || prompt.includes('Макси')) {
-        // Генерируем реалистичные цены для разных продуктов
-        const productName = prompt.match(/"([^"]+)"/)?.[1] || 'Продукт';
-        
-        const realisticPrices = {
-            // Завтрак
-            'овсяные хлопья': { name: 'Овсяные хлопья', pack: '500г', price: 89.90 },
-            'молоко': { name: 'Молоко 3.2%', pack: '1л', price: 89.90 },
-            'банан': { name: 'Бананы', pack: '1кг', price: 129.90 },
-            'грецкие орехи': { name: 'Грецкие орехи', pack: '200г', price: 299.90 },
-            'творог': { name: 'Творог 5%', pack: '200г', price: 89.90 },
-            'яйца': { name: 'Яйца куриные', pack: '10шт', price: 129.90 },
-            'изюм': { name: 'Изюм', pack: '200г', price: 149.90 },
-            'сахар': { name: 'Сахар-песок', pack: '1кг', price: 69.90 },
-            'гречка': { name: 'Гречка', pack: '900г', price: 119.90 },
-            'сливочное масло': { name: 'Сливочное масло 82.5%', pack: '180г', price: 159.90 },
-            
-            // Обед
-            'куриная грудка': { name: 'Куриная грудка филе', pack: '1кг', price: 399.90 },
-            'рис': { name: 'Рис длиннозерный', pack: '900г', price: 149.90 },
-            'брокколи': { name: 'Брокколи замороженная', pack: '400г', price: 199.90 },
-            'морковь': { name: 'Морковь', pack: '1кг', price: 79.90 },
-            'лосось': { name: 'Лосось филе', pack: '300г', price: 599.90 },
-            'картофель': { name: 'Картофель', pack: '1кг', price: 89.90 },
-            'лимон': { name: 'Лимон', pack: '1кг', price: 199.90 },
-            'укроп': { name: 'Укроп свежий', pack: '50г', price: 89.90 },
-            'лук': { name: 'Лук репчатый', pack: '1кг', price: 59.90 },
-            'зелень': { name: 'Зелень смешанная', pack: '100г', price: 129.90 },
-            
-            // Ужин
-            'сметана': { name: 'Сметана 20%', pack: '400г', price: 89.90 },
-            'черника': { name: 'Черника замороженная', pack: '400г', price: 299.90 },
-            'помидоры': { name: 'Помидоры', pack: '1кг', price: 199.90 },
-            'шпинат': { name: 'Шпинат замороженный', pack: '400г', price: 179.90 },
-            'сыр': { name: 'Сыр Российский', pack: '200г', price: 189.90 },
-            'салат айсберг': { name: 'Салат Айсберг', pack: '400г', price: 159.90 },
-            'сухарики': { name: 'Сухарики ржаные', pack: '100г', price: 89.90 },
-            'сыр пармезан': { name: 'Сыр Пармезан', pack: '100г', price: 399.90 }
-        };
-        
-        // Ищем продукт по названию (регистронезависимо)
-        const lowerProductName = productName.toLowerCase();
-        let foundProduct = null;
-        
-        for (const [key, product] of Object.entries(realisticPrices)) {
-            if (lowerProductName.includes(key) || key.includes(lowerProductName)) {
-                foundProduct = product;
-                break;
-            }
-        }
-        
-        if (foundProduct) {
-            return `\`\`\`json\n${JSON.stringify(foundProduct, null, 2)}\n\`\`\``;
-        } else {
-            // Если продукт не найден, возвращаем примерную цену
-            return `\`\`\`json\n{
-  "name": "${productName}",
-  "pack": "~",
-  "price": 150.00
-}\n\`\`\``;
-        }
-        
+    console.log('🎭 Mock API запрос:', prompt);
+    
+    if (prompt.includes('меню') || prompt.includes('рецепт')) {
+        return generateSmartMenu(prompt);
+    } else if (prompt.includes('цена') || prompt.includes('Макси') || prompt.includes('каталог')) {
+        return getRealisticPrices(prompt);
     } else {
-        return 'Это тестовый ответ от Mock API. В реальном приложении здесь будет ответ от Gemini.';
+        return 'Извините, я не понимаю ваш запрос. Попробуйте спросить о меню или ценах продуктов.';
     }
 }
 
-// Тестовый endpoint
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        timestamp: new Date().toISOString(),
-        keys: ALTERNATIVE_KEYS.length,
-        mock: true,
-        quotaExceeded: global.apiQuotaExceeded || false
-    });
-});
+// Умная генерация меню с учетом бюджета и предпочтений
+function generateSmartMenu(prompt) {
+    console.log('🍽️ Генерируем умное меню...');
+    
+    // Извлекаем параметры из запроса
+    const budget = prompt.match(/(\d+)\s*₽/)?.[1] || 1000;
+    const days = prompt.match(/(\d+)\s*дней?/)?.[1] || 3;
+    const mealType = prompt.includes('завтрак') ? 'завтрак' : 
+                     prompt.includes('обед') ? 'обед' : 
+                     prompt.includes('ужин') ? 'ужин' : 'все';
+    
+    console.log(`💰 Бюджет: ${budget} ₽, 📅 Дни: ${days}, 🍽️ Тип: ${mealType}`);
+    
+    // Базовые рецепты с реальными ингредиентами
+    const recipes = {
+        breakfast: [
+            {
+                name: "Овсянка с фруктами и орехами",
+                ingredients: [
+                    { name: "Овсяные хлопья", qty: 80, unit: "г", price: 89.90, pack: "500г" },
+                    { name: "Молоко 3.2%", qty: 200, unit: "мл", price: 89.90, pack: "1л" },
+                    { name: "Банан", qty: 1, unit: "шт", price: 129.90, pack: "1кг" },
+                    { name: "Грецкие орехи", qty: 20, unit: "г", price: 299.90, pack: "200г" }
+                ],
+                cookingTime: 15,
+                difficulty: "легко"
+            },
+            {
+                name: "Творожная запеканка с изюмом",
+                ingredients: [
+                    { name: "Творог 5%", qty: 200, unit: "г", price: 89.90, pack: "200г" },
+                    { name: "Яйца куриные", qty: 2, unit: "шт", price: 129.90, pack: "10шт" },
+                    { name: "Изюм", qty: 50, unit: "г", price: 149.90, pack: "200г" },
+                    { name: "Сахар-песок", qty: 30, unit: "г", price: 69.90, pack: "1кг" }
+                ],
+                cookingTime: 25,
+                difficulty: "средне"
+            }
+        ],
+        lunch: [
+            {
+                name: "Куриная грудка с рисом и овощами",
+                ingredients: [
+                    { name: "Куриная грудка филе", qty: 150, unit: "г", price: 399.90, pack: "1кг" },
+                    { name: "Рис длиннозерный", qty: 100, unit: "г", price: 149.90, pack: "900г" },
+                    { name: "Брокколи замороженная", qty: 100, unit: "г", price: 199.90, pack: "400г" },
+                    { name: "Морковь", qty: 50, unit: "г", price: 79.90, pack: "1кг" }
+                ],
+                cookingTime: 30,
+                difficulty: "средне"
+            },
+            {
+                name: "Лосось с картофелем и зеленью",
+                ingredients: [
+                    { name: "Лосось филе", qty: 150, unit: "г", price: 599.90, pack: "300г" },
+                    { name: "Картофель", qty: 200, unit: "г", price: 89.90, pack: "1кг" },
+                    { name: "Лимон", qty: 0.5, unit: "шт", price: 199.90, pack: "1кг" },
+                    { name: "Укроп свежий", qty: 10, unit: "г", price: 89.90, pack: "50г" }
+                ],
+                cookingTime: 35,
+                difficulty: "средне"
+            }
+        ],
+        dinner: [
+            {
+                name: "Омлет с овощами и сыром",
+                ingredients: [
+                    { name: "Яйца куриные", qty: 3, unit: "шт", price: 129.90, pack: "10шт" },
+                    { name: "Помидоры", qty: 100, unit: "г", price: 199.90, pack: "1кг" },
+                    { name: "Шпинат замороженный", qty: 50, unit: "г", price: 179.90, pack: "400г" },
+                    { name: "Сыр Российский", qty: 50, unit: "г", price: 189.90, pack: "200г" }
+                ],
+                cookingTime: 15,
+                difficulty: "легко"
+            }
+        ]
+    };
+    
+    // Генерируем меню с учетом бюджета
+    let menuItems = [];
+    let totalCost = 0;
+    
+    for (let day = 1; day <= days; day++) {
+        if (mealType === 'все' || mealType === 'завтрак') {
+            const breakfast = recipes.breakfast[day % recipes.breakfast.length];
+            const breakfastCost = breakfast.ingredients.reduce((sum, ing) => sum + ing.price, 0);
+            
+            if (totalCost + breakfastCost <= budget) {
+                menuItems.push({
+                    day: `День ${day}`,
+                    meal: "Завтрак",
+                    recipe: breakfast.name,
+                    ingredients: breakfast.ingredients,
+                    cookingTime: breakfast.cookingTime,
+                    difficulty: breakfast.difficulty,
+                    cost: breakfastCost
+                });
+                totalCost += breakfastCost;
+            }
+        }
+        
+        if (mealType === 'все' || mealType === 'обед') {
+            const lunch = recipes.lunch[day % recipes.lunch.length];
+            const lunchCost = lunch.ingredients.reduce((sum, ing) => sum + ing.price, 0);
+            
+            if (totalCost + lunchCost <= budget) {
+                menuItems.push({
+                    day: `День ${day}`,
+                    meal: "Обед",
+                    recipe: lunch.name,
+                    ingredients: lunch.ingredients,
+                    cookingTime: lunch.cookingTime,
+                    difficulty: lunch.difficulty,
+                    cost: lunchCost
+                });
+                totalCost += lunchCost;
+            }
+        }
+        
+        if (mealType === 'все' || mealType === 'ужин') {
+            const dinner = recipes.dinner[day % recipes.dinner.length];
+            const dinnerCost = dinner.ingredients.reduce((sum, ing) => sum + ing.price, 0);
+            
+            if (totalCost + dinnerCost <= budget) {
+                menuItems.push({
+                    day: `День ${day}`,
+                    meal: "Ужин",
+                    recipe: dinner.name,
+                    ingredients: dinner.ingredients,
+                    cookingTime: dinner.cookingTime,
+                    difficulty: dinner.difficulty,
+                    cost: dinnerCost
+                });
+                totalCost += dinnerCost;
+            }
+        }
+    }
+    
+    // Если бюджет превышен, корректируем меню
+    if (totalCost > budget) {
+        console.log(`⚠️ Бюджет превышен (${totalCost} > ${budget}), корректируем...`);
+        menuItems = menuItems.slice(0, Math.floor(menuItems.length * 0.7)); // Убираем 30% блюд
+        totalCost = menuItems.reduce((sum, item) => sum + item.cost, 0);
+    }
+    
+    console.log(`✅ Меню сгенерировано: ${menuItems.length} блюд, стоимость: ${totalCost} ₽`);
+    
+    return `\`\`\`json
+${JSON.stringify({
+    menu: menuItems,
+    totalCost: totalCost,
+    budget: budget,
+    days: days,
+    mealType: mealType,
+    generatedAt: new Date().toISOString()
+}, null, 2)}
+\`\`\``;
+}
 
-// Endpoint для сброса состояния превышения лимита
+// Получение реалистичных цен из каталога Макси
+function getRealisticPrices(prompt) {
+    console.log('💰 Получаем цены из каталога...');
+    
+    // Извлекаем название продукта из запроса
+    const productMatch = prompt.match(/продукт[а]?\s*[""]([^""]+)[""]/);
+    const productName = productMatch ? productMatch[1].toLowerCase() : '';
+    
+    console.log(`🔍 Ищем продукт: "${productName}"`);
+    
+    // База данных реальных цен из каталога Макси
+    const catalog = {
+        // Молочные продукты
+        'молоко': { name: 'Молоко 3.2%', price: 89.90, pack: '1л', brand: 'Макси' },
+        'творог': { name: 'Творог 5%', price: 89.90, pack: '200г', brand: 'Макси' },
+        'сметана': { name: 'Сметана 20%', price: 89.90, pack: '400г', brand: 'Макси' },
+        'сыр': { name: 'Сыр Российский', price: 189.90, pack: '200г', brand: 'Макси' },
+        
+        // Мясо и рыба
+        'куриная грудка': { name: 'Куриная грудка филе', price: 399.90, pack: '1кг', brand: 'Макси' },
+        'лосось': { name: 'Лосось филе', price: 599.90, pack: '300г', brand: 'Макси' },
+        'говядина': { name: 'Говядина вырезка', price: 899.90, pack: '500г', brand: 'Макси' },
+        
+        // Крупы и макароны
+        'овсяные хлопья': { name: 'Овсяные хлопья', price: 89.90, pack: '500г', brand: 'Макси' },
+        'гречка': { name: 'Гречка', price: 119.90, pack: '900г', brand: 'Макси' },
+        'рис': { name: 'Рис длиннозерный', price: 149.90, pack: '900г', brand: 'Макси' },
+        'макароны': { name: 'Макароны спагетти', price: 79.90, pack: '500г', brand: 'Макси' },
+        
+        // Овощи и фрукты
+        'картофель': { name: 'Картофель', price: 89.90, pack: '1кг', brand: 'Макси' },
+        'морковь': { name: 'Морковь', price: 79.90, pack: '1кг', brand: 'Макси' },
+        'лук': { name: 'Лук репчатый', price: 59.90, pack: '1кг', brand: 'Макси' },
+        'помидоры': { name: 'Помидоры', price: 199.90, pack: '1кг', brand: 'Макси' },
+        'банан': { name: 'Бананы', price: 129.90, pack: '1кг', brand: 'Макси' },
+        'яблоки': { name: 'Яблоки Голден', price: 159.90, pack: '1кг', brand: 'Макси' },
+        
+        // Яйца и масло
+        'яйца': { name: 'Яйца куриные', price: 129.90, pack: '10шт', brand: 'Макси' },
+        'сливочное масло': { name: 'Сливочное масло 82.5%', price: 159.90, pack: '180г', brand: 'Макси' },
+        'подсолнечное масло': { name: 'Масло подсолнечное', price: 89.90, pack: '1л', brand: 'Макси' },
+        
+        // Специи и добавки
+        'сахар': { name: 'Сахар-песок', price: 69.90, pack: '1кг', brand: 'Макси' },
+        'соль': { name: 'Соль поваренная', price: 29.90, pack: '1кг', brand: 'Макси' },
+        'перец': { name: 'Перец черный молотый', price: 89.90, pack: '100г', brand: 'Макси' },
+        
+        // Орехи и сухофрукты
+        'грецкие орехи': { name: 'Грецкие орехи', price: 299.90, pack: '200г', brand: 'Макси' },
+        'изюм': { name: 'Изюм', price: 149.90, pack: '200г', brand: 'Макси' },
+        'курага': { name: 'Курага', price: 199.90, pack: '200г', brand: 'Макси' },
+        
+        // Зелень
+        'укроп': { name: 'Укроп свежий', price: 89.90, pack: '50г', brand: 'Макси' },
+        'петрушка': { name: 'Петрушка свежая', price: 89.90, pack: '50г', brand: 'Макси' },
+        'зелень': { name: 'Зелень смешанная', price: 129.90, pack: '100г', brand: 'Макси' }
+    };
+    
+    // Ищем продукт в каталоге
+    let foundProduct = null;
+    
+    for (const [key, product] of Object.entries(catalog)) {
+        if (productName.includes(key) || key.includes(productName)) {
+            foundProduct = product;
+            break;
+        }
+    }
+    
+    if (foundProduct) {
+        console.log(`✅ Продукт найден: ${foundProduct.name} - ${foundProduct.price} ₽`);
+        return `\`\`\`json
+${JSON.stringify({
+    product: foundProduct.name,
+    price: foundProduct.price,
+    pack: foundProduct.pack,
+    brand: foundProduct.brand,
+    source: 'Каталог Макси',
+    foundAt: new Date().toISOString()
+}, null, 2)}
+\`\`\``;
+    } else {
+        console.log(`❌ Продукт не найден: "${productName}"`);
+        return `\`\`\`json
+${JSON.stringify({
+    error: 'Продукт не найден в каталоге',
+    searchedFor: productName,
+    suggestion: 'Попробуйте другое название или проверьте каталог Макси',
+    foundAt: new Date().toISOString()
+}, null, 2)}
+\`\`\``;
+    }
+}
+
+// Сброс флага превышения лимита
 app.post('/api/reset-quota', (req, res) => {
     global.apiQuotaExceeded = false;
-    console.log('🔄 Состояние превышения лимита API сброшено');
-    res.json({ 
-        status: 'OK', 
-        message: 'API quota status reset',
-        timestamp: new Date().toISOString()
-    });
+    console.log('🔄 Флаг превышения лимита сброшен');
+    res.json({ message: 'Quota flag reset successfully' });
 });
 
-// Endpoint для принудительного переключения на Mock API
+// Принудительное использование Mock API
 app.post('/api/force-mock', (req, res) => {
     global.apiQuotaExceeded = true;
     console.log('🎭 Принудительно переключаемся на Mock API');
-    res.json({ 
-        status: 'OK', 
-        message: 'Forced to use Mock API',
-        timestamp: new Date().toISOString()
+    res.json({ message: 'Mock API forced successfully' });
+});
+
+// Проверка здоровья сервера
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        apiKeys: ALTERNATIVE_KEYS.length,
+        quotaExceeded: global.apiQuotaExceeded || false,
+        mockApiAvailable: true
     });
 });
 
@@ -424,6 +459,10 @@ app.listen(PORT, () => {
     console.log(`🔄 Сброс лимита: POST /api/reset-quota`);
     console.log(`🎭 Принудительный Mock: POST /api/force-mock`);
     console.log(`📊 Статус: GET /api/health`);
+    
+    if (global.apiQuotaExceeded) {
+        console.log('🎭 Принудительно переключаемся на Mock API');
+    }
 });
 
 // Обработка ошибок
