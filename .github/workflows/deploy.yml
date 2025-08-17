@@ -27,12 +27,13 @@ jobs:
       with:
         node-version: '18'
         
-    - name: Build and prepare files
+    - name: Create dist directory
       run: |
-        # Создаем директорию для артефактов
         mkdir -p dist
+        echo "✅ Директория dist создана"
         
-        # Создаем config.js в dist директории
+    - name: Create config.js from secrets
+      run: |
         cat > dist/config.js << 'EOF'
         // config.js - Автоматически создается GitHub Actions
         // НЕ добавляйте этот файл в Git!
@@ -53,7 +54,11 @@ jobs:
         console.log('🤖 Gemini API Key:', window.GEMINI_CONFIG.apiKey.substring(0, 20) + '...');
         EOF
         
-        # Копируем файлы по отдельности, исключая dist
+        echo "✅ config.js создан с секретами"
+        
+    - name: Copy application files
+      run: |
+        # Копируем основные файлы приложения
         cp index.html dist/
         cp app.js dist/
         cp supabase-client.js dist/
@@ -61,16 +66,28 @@ jobs:
         cp .gitignore dist/
         cp config.example.js dist/
         
-        # Убеждаемся, что config.js создан
+        # Проверяем содержимое dist
+        echo "📁 Содержимое директории dist:"
         ls -la dist/
-        cat dist/config.js
+        
+        echo "📄 Проверяем config.js:"
+        head -5 dist/config.js
+        
+        echo "✅ Все файлы скопированы"
         
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: github-pages
         path: dist/
+        retention-days: 1
         
+    - name: Build complete
+      run: |
+        echo "🎉 Сборка завершена успешно!"
+        echo "📦 Артефакт github-pages создан"
+        echo "🚀 Готов к деплою на GitHub Pages"
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -79,8 +96,28 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: github-pages
+        path: dist/
+        
+    - name: Verify files
+      run: |
+        echo "🔍 Проверяем файлы для деплоя:"
+        ls -la dist/
+        echo "📄 Проверяем config.js:"
+        head -5 dist/config.js
+        echo "✅ Файлы готовы к деплою"
+        
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
       with:
-        path: dist/ 
+        path: dist/
+        
+    - name: Deploy complete
+      run: |
+        echo "🎉 Деплой завершен успешно!"
+        echo "🌐 URL: ${{ steps.deployment.outputs.page_url }}"
+        echo "✅ Приложение развернуто на GitHub Pages" 
