@@ -40,6 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Тестируем API ключ
     testApiKey();
     
+    // Очищаем поврежденные данные
+    clearCorruptedData();
+    
     checkAuth();
     setupEventListeners();
 });
@@ -248,14 +251,106 @@ function loadUserData() {
     if (!currentUser) return;
     
     const userKey = `user_${currentUser.id}`;
-    boughtProducts = JSON.parse(localStorage.getItem(`${userKey}_boughtProducts`) || '[]');
-    availableIngredients = JSON.parse(localStorage.getItem(`${userKey}_availableIngredients`) || [
-        "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
-    ]);
-    menus = JSON.parse(localStorage.getItem(`${userKey}_menus`) || '[]');
-    currentProducts = JSON.parse(localStorage.getItem(`${userKey}_currentProducts`) || '[]');
+    
+    // Безопасная загрузка данных с проверкой JSON
+    try {
+        boughtProducts = safeJsonParse(localStorage.getItem(`${userKey}_boughtProducts`), []);
+        availableIngredients = safeJsonParse(localStorage.getItem(`${userKey}_availableIngredients`), [
+            "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
+        ]);
+        menus = safeJsonParse(localStorage.getItem(`${userKey}_menus`), []);
+        currentProducts = safeJsonParse(localStorage.getItem(`${userKey}_currentProducts`), []);
+    } catch (error) {
+        console.error('Ошибка загрузки данных пользователя:', error);
+        // Сбрасываем данные к начальным значениям
+        resetUserData(userKey);
+    }
     
     updateUI();
+}
+
+// Безопасный парсинг JSON
+function safeJsonParse(jsonString, defaultValue) {
+    if (!jsonString) return defaultValue;
+    
+    try {
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.warn('Ошибка парсинга JSON, используем значение по умолчанию:', error);
+        return defaultValue;
+    }
+}
+
+// Сброс данных пользователя к начальным значениям
+function resetUserData(userKey) {
+    console.log('Сброс данных пользователя к начальным значениям');
+    
+    boughtProducts = [];
+    availableIngredients = [
+        "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
+    ];
+    menus = [];
+    currentProducts = [];
+    
+    // Сохраняем очищенные данные
+    saveUserData();
+}
+
+// Очистка поврежденных данных в localStorage
+function clearCorruptedData() {
+    console.log('Очистка поврежденных данных в localStorage');
+    
+    // Получаем все ключи localStorage
+    const keys = Object.keys(localStorage);
+    
+    // Ищем ключи, связанные с пользователями
+    const userKeys = keys.filter(key => key.startsWith('user_'));
+    
+    userKeys.forEach(key => {
+        try {
+            // Пытаемся распарсить данные
+            const data = localStorage.getItem(key);
+            if (data) {
+                JSON.parse(data);
+            }
+        } catch (error) {
+            console.warn(`Поврежденные данные в ключе ${key}, удаляем`);
+            localStorage.removeItem(key);
+        }
+    });
+    
+    console.log('Очистка завершена');
+}
+
+// Очистка всех данных пользователя
+function clearAllUserData() {
+    if (!currentUser) return;
+    
+    if (confirm('Вы уверены, что хотите очистить ВСЕ данные? Это действие нельзя отменить!')) {
+        console.log('Очистка всех данных пользователя');
+        
+        const userKey = `user_${currentUser.id}`;
+        
+        // Удаляем все данные пользователя
+        localStorage.removeItem(`${userKey}_boughtProducts`);
+        localStorage.removeItem(`${userKey}_availableIngredients`);
+        localStorage.removeItem(`${userKey}_menus`);
+        localStorage.removeItem(`${userKey}_currentProducts`);
+        
+        // Сбрасываем переменные
+        boughtProducts = [];
+        availableIngredients = [
+            "рис (~700 г)", "макароны", "капуста", "масло", "соль", "специи"
+        ];
+        menus = [];
+        currentProducts = [];
+        
+        // Обновляем UI
+        updateShoppingUI();
+        updateMenuUI();
+        
+        showMessage('Все данные пользователя очищены', 'success');
+    }
 }
 
 // Сохранение данных пользователя
@@ -510,12 +605,14 @@ function updateShoppingUI() {
         
         <button class="btn btn-success" id="markAllBought">У меня есть все продукты</button>
         <button class="btn btn-danger" id="resetList">Сбросить список</button>
+        <button class="btn btn-warning" id="clearAllData">Очистить все данные</button>
     `;
 
     // Добавить обработчики для новых элементов
     document.getElementById('searchProducts').addEventListener('input', filterProducts);
     document.getElementById('markAllBought').addEventListener('click', markAllAsBought);
     document.getElementById('resetList').addEventListener('click', resetShoppingList);
+    document.getElementById('clearAllData').addEventListener('click', clearAllUserData);
 
     renderProductsList();
 }
