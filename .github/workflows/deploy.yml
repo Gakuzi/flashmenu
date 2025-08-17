@@ -27,9 +27,13 @@ jobs:
       with:
         node-version: '18'
         
-    - name: Create config.js from secrets
+    - name: Build and prepare files
       run: |
-        cat > config.js << 'EOF'
+        # Создаем директорию для артефактов
+        mkdir -p dist
+        
+        # Создаем config.js в dist директории
+        cat > dist/config.js << 'EOF'
         // config.js - Автоматически создается GitHub Actions
         // НЕ добавляйте этот файл в Git!
         
@@ -48,11 +52,6 @@ jobs:
         console.log('🔑 Supabase Key:', window.SUPABASE_CONFIG.anonKey.substring(0, 20) + '...');
         console.log('🤖 Gemini API Key:', window.GEMINI_CONFIG.apiKey.substring(0, 20) + '...');
         EOF
-        
-    - name: Build and prepare files
-      run: |
-        # Создаем директорию для артефактов
-        mkdir -p dist
         
         # Копируем файлы по отдельности, исключая dist
         cp index.html dist/
