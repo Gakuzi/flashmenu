@@ -179,6 +179,7 @@ function generateMockResponse(prompt) {
             meal: "Завтрак",
                 recipe: "Овсяная каша с яблоками",
             ingredients: [
+>>>>>>> main
                     { name: "овсянка", qty: 100, unit: "г" },
                     { name: "молоко", qty: 200, unit: "мл" },
                     { name: "яблоко", qty: 1, unit: "шт" },
@@ -191,12 +192,14 @@ function generateMockResponse(prompt) {
             meal: "Обед",
             recipe: "Куриный суп с овощами",
             ingredients: [
+>>>>>>> main
                     { name: "куриная грудка", qty: 200, unit: "г" },
                     { name: "картофель", qty: 300, unit: "г" },
                     { name: "морковь", qty: 100, unit: "г" },
                     { name: "лук", qty: 50, unit: "г" }
-            ],
+    ],
             cookingTime: 45
+>>>>>>> main
             }
         ]);
     } else if (prompt.includes('каталог') || prompt.includes('цена') || prompt.includes('продукт')) {
@@ -902,6 +905,7 @@ async function checkAuth() {
             }
         } else {
             // Проверяем localStorage
+<<<<<<< HEAD
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         try {
@@ -910,9 +914,11 @@ async function checkAuth() {
                     await loadUserData();
                     showMainApp();
                     return;
-        } catch (error) {
-            console.error('❌ Ошибка парсинга пользователя из localStorage:', error);
-            localStorage.removeItem('currentUser');
+<<<<<<< HEAD
+                } catch (error) {
+                    console.error('❌ Ошибка парсинга пользователя из localStorage:', error);
+                    localStorage.removeItem('currentUser');
+>>>>>>> main
                 }
             }
         }
@@ -951,7 +957,7 @@ function showAuthScreen() {
                     <div class="form-group">
                         <label class="form-label">Email</label>
                         <input type="email" class="form-input" id="loginEmail" required>
-        </div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Пароль</label>
                         <input type="password" class="form-input" id="loginPassword" required>
@@ -964,29 +970,41 @@ function showAuthScreen() {
                 </form>
                 
                 <!-- Форма регистрации -->
-        <form id="registerForm" class="auth-form">
                     <div class="form-group">
                         <label class="form-label">Имя</label>
                         <input type="text" class="form-input" id="registerName" required>
                     </div>
-            <div class="form-group">
+<<<<<<< HEAD
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Пароль</label>
+                        <input type="password" class="form-input" id="registerPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Подтвердите пароль</label>
+                        <input type="password" class="form-input" id="registerPasswordConfirm" required minlength="6">
+                    </div>
+                    <div class="form-error" id="registerError"></div>
+                    <button type="submit" class="btn btn-primary btn-large">
+                        <i class="fas fa-user-plus"></i>
+                        Зарегистрироваться
+                    </button>
+    <div class="form-group">
                 <label class="form-label">Email</label>
-                <input type="email" class="form-input" id="registerEmail" required>
-            </div>
-            <div class="form-group">
+    <input type="email" class="form-input" id="registerEmail" required>
+    </div>
+    <div class="form-group">
                 <label class="form-label">Пароль</label>
-                <input type="password" class="form-input" id="registerPassword" required minlength="6">
-            </div>
-            <div class="form-group">
+    <input type="password" class="form-input" id="registerPassword" required minlength="6">
+    </div>
+    <div class="form-group">
                 <label class="form-label">Подтвердите пароль</label>
                         <input type="password" class="form-input" id="registerPasswordConfirm" required minlength="6">
-            </div>
-                    <div class="form-error" id="registerError"></div>
-            <button type="submit" class="btn btn-primary btn-large">
-                <i class="fas fa-user-plus"></i>
-                Зарегистрироваться
-            </button>
-        </form>
+    </div>
+                </form>
             </div>
         </div>
     `;
@@ -1061,10 +1079,12 @@ async function handleLogin(e) {
         }
         
         if (user.password !== password) {
-            errorElement.textContent = 'Неверный пароль';
+            errorElement.textContent = 'Неверный пароль';        return;
+=======
         return;
     }
     
+>>>>>>> main
         currentUser = user;
         localStorage.setItem('currentUser', JSON.stringify(user));
         await loadUserData();
@@ -1114,27 +1134,36 @@ async function handleRegister(e) {
     try {
         console.log('📝 Попытка регистрации для:', email);
         
+
         // Регистрация через localStorage (так как Supabase не настроен)
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            
-        // Проверяем, не существует ли уже пользователь
+            const users = JSON.parse(localStorage.getItem('users') || '[]');            // Проверяем, не существует ли уже пользователь
+            return;
+        }
+        
+        // Создаем нового пользователя
+        const newUser = {
+            id: Date.now().toString(),
+            name,
+            email,
+            password,
+            createdAt: new Date().toISOString()
+        };
+        
+        users.push(newUser);
+        localStorage.setItem('users', JSON.stringify(users));
+        
         if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
             errorElement.textContent = 'Пользователь с таким email уже существует';
                 return;
             }
-            
-        // Создаем нового пользователя
-            const newUser = {
-            id: Date.now().toString(),
-            name,
-                email,
-            password,
+        const newUser = {id: Date.now().toString(),name,email,password,
                 createdAt: new Date().toISOString()
             };
             
             users.push(newUser);
             localStorage.setItem('users', JSON.stringify(users));
             
+>>>>>>> main
         currentUser = newUser;
         localStorage.setItem('currentUser', JSON.stringify(newUser));
         await loadUserData();
@@ -1635,8 +1664,9 @@ function showChangePasswordDialog() {
         
         if (newPassword.length < 6) {
             errorElement.textContent = 'Новый пароль должен содержать минимум 6 символов';
-        return;
+            return;
     }
+>>>>>>> main
         
         try {
             // Смена пароля через localStorage (так как Supabase не настроен)
@@ -1704,8 +1734,8 @@ async function loadUserData() {
         console.log('🛒 Продукты:', currentProducts.length);
         console.log('✅ Купленные:', boughtProducts.length);
         console.log('🥘 Ингредиенты:', availableIngredients.length);
-
-    } catch (error) {
+<<<<<<< HEAD
+    }    } catch (error) {
         console.error('❌ Ошибка загрузки данных пользователя:', error);
         // Используем пустые значения по умолчанию
         menus = [];
@@ -2008,8 +2038,9 @@ function renderProductsList() {
     // Прогресс-бар
     const progressFill = document.getElementById('progressFill');
     if (progressFill) {
-    const progress = currentProducts.length > 0 ? (boughtProducts.length / currentProducts.length) * 100 : 0;
-    progressFill.style.width = `${progress}%`;
+        const progress = currentProducts.length > 0 ? (boughtProducts.length / currentProducts.length) * 100 : 0;
+        progressFill.style.width = `${progress}%`;
+>>>>>>> main
         progressFill.style.backgroundColor = progress === 100 ? '#10b981' : '#6366f1';
     }
 }
@@ -2168,10 +2199,13 @@ function renderMenuItems() {
                         <div class="meal-header">
                             <h5>${item.meal}</h5>
                             ${item.cookingTime ? `<span class="cooking-time">⏱️ ${item.cookingTime} мин</span>` : ''}
+<<<<<<< HEAD
+    </div>
             </div>
                         <div class="meal-preview">
                             <p class="recipe-preview">${item.recipe.substring(0, 100)}${item.recipe.length > 100 ? '...' : ''}</p>
             </div>
+>>>>>>> main
                         ${allProductsBought ? `
                             <button class="btn btn-primary btn-sm start-cooking" data-day="${day}" data-meal="${item.meal}">
                                 🍳 Начать готовить
