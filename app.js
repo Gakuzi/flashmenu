@@ -176,27 +176,30 @@ function generateMockResponse(prompt) {
         return JSON.stringify([
             {
                 day: 1,
-                meal: "Завтрак",
+            meal: "Завтрак",
                 recipe: "Овсяная каша с яблоками",
-                ingredients: [
+            ingredients: [
+>>>>>>> main
                     { name: "овсянка", qty: 100, unit: "г" },
                     { name: "молоко", qty: 200, unit: "мл" },
                     { name: "яблоко", qty: 1, unit: "шт" },
                     { name: "мед", qty: 10, unit: "г" }
-                ],
-                cookingTime: 15
-            },
-            {
+            ],
+            cookingTime: 15
+        },
+        {
                 day: 1,
-                meal: "Обед",
-                recipe: "Куриный суп с овощами",
-                ingredients: [
+            meal: "Обед",
+            recipe: "Куриный суп с овощами",
+            ingredients: [
+>>>>>>> main
                     { name: "куриная грудка", qty: 200, unit: "г" },
                     { name: "картофель", qty: 300, unit: "г" },
                     { name: "морковь", qty: 100, unit: "г" },
                     { name: "лук", qty: 50, unit: "г" }
-                ],
-                cookingTime: 45
+    ],
+            cookingTime: 45
+>>>>>>> main
             }
         ]);
     } else if (prompt.includes('каталог') || prompt.includes('цена') || prompt.includes('продукт')) {
@@ -902,17 +905,20 @@ async function checkAuth() {
             }
         } else {
             // Проверяем localStorage
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                try {
-                    currentUser = JSON.parse(savedUser);
+<<<<<<< HEAD
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+        try {
+        currentUser = JSON.parse(savedUser);
                     console.log('✅ Найден пользователь в localStorage:', currentUser.email);
                     await loadUserData();
                     showMainApp();
                     return;
+<<<<<<< HEAD
                 } catch (error) {
                     console.error('❌ Ошибка парсинга пользователя из localStorage:', error);
                     localStorage.removeItem('currentUser');
+>>>>>>> main
                 }
             }
         }
@@ -964,11 +970,11 @@ function showAuthScreen() {
                 </form>
                 
                 <!-- Форма регистрации -->
-                <form id="registerForm" class="auth-form">
                     <div class="form-group">
                         <label class="form-label">Имя</label>
                         <input type="text" class="form-input" id="registerName" required>
                     </div>
+<<<<<<< HEAD
                     <div class="form-group">
                         <label class="form-label">Email</label>
                         <input type="email" class="form-input" id="registerEmail" required>
@@ -986,6 +992,18 @@ function showAuthScreen() {
                         <i class="fas fa-user-plus"></i>
                         Зарегистрироваться
                     </button>
+    <div class="form-group">
+                <label class="form-label">Email</label>
+    <input type="email" class="form-input" id="registerEmail" required>
+    </div>
+    <div class="form-group">
+                <label class="form-label">Пароль</label>
+    <input type="password" class="form-input" id="registerPassword" required minlength="6">
+    </div>
+    <div class="form-group">
+                <label class="form-label">Подтвердите пароль</label>
+                        <input type="password" class="form-input" id="registerPasswordConfirm" required minlength="6">
+    </div>
                 </form>
             </div>
         </div>
@@ -1061,10 +1079,12 @@ async function handleLogin(e) {
         }
         
         if (user.password !== password) {
-            errorElement.textContent = 'Неверный пароль';
-            return;
-        }
-        
+            errorElement.textContent = 'Неверный пароль';        return;
+=======
+        return;
+    }
+    
+>>>>>>> main
         currentUser = user;
         localStorage.setItem('currentUser', JSON.stringify(user));
         await loadUserData();
@@ -1114,12 +1134,9 @@ async function handleRegister(e) {
     try {
         console.log('📝 Попытка регистрации для:', email);
         
+
         // Регистрация через localStorage (так как Supabase не настроен)
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        
-        // Проверяем, не существует ли уже пользователь
-        if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-            errorElement.textContent = 'Пользователь с таким email уже существует';
+            const users = JSON.parse(localStorage.getItem('users') || '[]');            // Проверяем, не существует ли уже пользователь
             return;
         }
         
@@ -1135,6 +1152,18 @@ async function handleRegister(e) {
         users.push(newUser);
         localStorage.setItem('users', JSON.stringify(users));
         
+        if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+            errorElement.textContent = 'Пользователь с таким email уже существует';
+                return;
+            }
+        const newUser = {id: Date.now().toString(),name,email,password,
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(newUser);
+            localStorage.setItem('users', JSON.stringify(users));
+            
+>>>>>>> main
         currentUser = newUser;
         localStorage.setItem('currentUser', JSON.stringify(newUser));
         await loadUserData();
@@ -1636,7 +1665,8 @@ function showChangePasswordDialog() {
         if (newPassword.length < 6) {
             errorElement.textContent = 'Новый пароль должен содержать минимум 6 символов';
             return;
-        }
+    }
+>>>>>>> main
         
         try {
             // Смена пароля через localStorage (так как Supabase не настроен)
@@ -1704,8 +1734,8 @@ async function loadUserData() {
         console.log('🛒 Продукты:', currentProducts.length);
         console.log('✅ Купленные:', boughtProducts.length);
         console.log('🥘 Ингредиенты:', availableIngredients.length);
-        
-    } catch (error) {
+<<<<<<< HEAD
+    }    } catch (error) {
         console.error('❌ Ошибка загрузки данных пользователя:', error);
         // Используем пустые значения по умолчанию
         menus = [];
@@ -1959,7 +1989,7 @@ function updateShoppingUI() {
 function renderProductsList() {
     const productsList = document.getElementById('productsList');
     if (!productsList) return;
-    
+
     // Список продуктов
     productsList.innerHTML = '';
     currentProducts.forEach((product, index) => {
@@ -2010,6 +2040,7 @@ function renderProductsList() {
     if (progressFill) {
         const progress = currentProducts.length > 0 ? (boughtProducts.length / currentProducts.length) * 100 : 0;
         progressFill.style.width = `${progress}%`;
+>>>>>>> main
         progressFill.style.backgroundColor = progress === 100 ? '#10b981' : '#6366f1';
     }
 }
@@ -2168,10 +2199,13 @@ function renderMenuItems() {
                         <div class="meal-header">
                             <h5>${item.meal}</h5>
                             ${item.cookingTime ? `<span class="cooking-time">⏱️ ${item.cookingTime} мин</span>` : ''}
-                        </div>
+<<<<<<< HEAD
+    </div>
+            </div>
                         <div class="meal-preview">
                             <p class="recipe-preview">${item.recipe.substring(0, 100)}${item.recipe.length > 100 ? '...' : ''}</p>
-                        </div>
+            </div>
+>>>>>>> main
                         ${allProductsBought ? `
                             <button class="btn btn-primary btn-sm start-cooking" data-day="${day}" data-meal="${item.meal}">
                                 🍳 Начать готовить
@@ -2278,7 +2312,7 @@ function startTimer(minutes) {
     }
 
     let timeLeft = minutes * 60;
-    
+
     // Создаем таймер если его нет
     let timer = document.getElementById('timer');
     if (!timer) {
