@@ -2,63 +2,31 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
-
-permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+    branches:
+      - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Create config.js from secrets
-      run: |
-        cat > config.js << 'EOF'
-        // Конфигурация создается автоматически из секретов GitHub Actions
-        window.GEMINI_CONFIG = {
-          apiKey: '${{ secrets.GEMINI_API_KEY_1 }}',
-          baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
-        };
-        
-        // Дополнительные API ключи для ротации
-        window.GEMINI_API_KEY_1 = '${{ secrets.GEMINI_API_KEY_1 }}';
-        window.GEMINI_API_KEY_2 = '${{ secrets.GEMINI_API_KEY_2 }}';
-        window.GEMINI_API_KEY_3 = '${{ secrets.GEMINI_API_KEY_3 }}';
-        window.GEMINI_API_KEY_4 = '${{ secrets.GEMINI_API_KEY_4 }}';
-        window.GEMINI_API_KEY_5 = '${{ secrets.GEMINI_API_KEY_5 }}';
-        window.GEMINI_API_KEY_6 = '${{ secrets.GEMINI_API_KEY_6 }}';
-        window.GEMINI_API_KEY_7 = '${{ secrets.GEMINI_API_KEY_7 }}';
-        window.GEMINI_API_KEY_8 = '${{ secrets.GEMINI_API_KEY_8 }}';
-        
-        window.SUPABASE_CONFIG = {
-          url: '${{ secrets.SUPABASE_URL }}',
-          anonKey: '${{ secrets.SUPABASE_ANON_KEY }}'
-        };
-        EOF
-      
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-      
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: github-pages
-        path: '.'
-        retention-days: 1
-        
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4 
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create config.js
+        run: |
+          echo "window.SUPABASE_CONFIG = { url: '${{ secrets.SUPABASE_URL }}', anonKey: '${{ secrets.SUPABASE_ANON_KEY }}' };" > config.js
+          echo "window.GEMINI_API_KEY_1 = '${{ secrets.GEMINI_API_KEY_1 }}';" >> config.js
+          echo "window.GEMINI_API_KEY_2 = '${{ secrets.GEMINI_API_KEY_2 }}';" >> config.js
+          echo "window.GEMINI_API_KEY_3 = '${{ secrets.GEMINI_API_KEY_3 }}';" >> config.js
+          echo "window.GEMINI_API_KEY_4 = '${{ secrets.GEMINI_API_KEY_4 }}';" >> config.js
+          echo "window.GEMINI_API_KEY_5 = '${{ secrets.GEMINI_API_KEY_5 }}';" >> config.js
+          echo "window.GEMINI_API_KEY_6 = '${{ secrets.GEMINI_API_KEY_6 }}';" >> config.js
+          echo "window.GEMINI_API_KEY_7 = '${{ secrets.GEMINI_API_KEY_7 }}';" >> config.js
+          echo "window.GEMINI_API_KEY_8 = '${{ secrets.GEMINI_API_KEY_8 }}';" >> config.js
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
