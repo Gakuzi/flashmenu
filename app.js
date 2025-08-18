@@ -179,7 +179,6 @@ function generateMockResponse(prompt) {
             meal: "Завтрак",
                 recipe: "Овсяная каша с яблоками",
             ingredients: [
->>>>>>> main
                     { name: "овсянка", qty: 100, unit: "г" },
                     { name: "молоко", qty: 200, unit: "мл" },
                     { name: "яблоко", qty: 1, unit: "шт" },
@@ -192,14 +191,12 @@ function generateMockResponse(prompt) {
             meal: "Обед",
             recipe: "Куриный суп с овощами",
             ingredients: [
->>>>>>> main
                     { name: "куриная грудка", qty: 200, unit: "г" },
                     { name: "картофель", qty: 300, unit: "г" },
                     { name: "морковь", qty: 100, unit: "г" },
                     { name: "лук", qty: 50, unit: "г" }
     ],
             cookingTime: 45
->>>>>>> main
             }
         ]);
     } else if (prompt.includes('каталог') || prompt.includes('цена') || prompt.includes('продукт')) {
@@ -905,7 +902,7 @@ async function checkAuth() {
             }
         } else {
             // Проверяем localStorage
-<<<<<<< HEAD
+
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         try {
@@ -914,11 +911,10 @@ async function checkAuth() {
                     await loadUserData();
                     showMainApp();
                     return;
-<<<<<<< HEAD
+
                 } catch (error) {
                     console.error('❌ Ошибка парсинга пользователя из localStorage:', error);
                     localStorage.removeItem('currentUser');
->>>>>>> main
                 }
             }
         }
@@ -974,7 +970,7 @@ function showAuthScreen() {
                         <label class="form-label">Имя</label>
                         <input type="text" class="form-input" id="registerName" required>
                     </div>
-<<<<<<< HEAD
+
                     <div class="form-group">
                         <label class="form-label">Email</label>
                         <input type="email" class="form-input" id="registerEmail" required>
@@ -1084,7 +1080,6 @@ async function handleLogin(e) {
         return;
     }
     
->>>>>>> main
         currentUser = user;
         localStorage.setItem('currentUser', JSON.stringify(user));
         await loadUserData();
@@ -1163,7 +1158,6 @@ async function handleRegister(e) {
             users.push(newUser);
             localStorage.setItem('users', JSON.stringify(users));
             
->>>>>>> main
         currentUser = newUser;
         localStorage.setItem('currentUser', JSON.stringify(newUser));
         await loadUserData();
@@ -1666,7 +1660,6 @@ function showChangePasswordDialog() {
             errorElement.textContent = 'Новый пароль должен содержать минимум 6 символов';
             return;
     }
->>>>>>> main
         
         try {
             // Смена пароля через localStorage (так как Supabase не настроен)
@@ -1734,7 +1727,6 @@ async function loadUserData() {
         console.log('🛒 Продукты:', currentProducts.length);
         console.log('✅ Купленные:', boughtProducts.length);
         console.log('🥘 Ингредиенты:', availableIngredients.length);
-<<<<<<< HEAD
     }    } catch (error) {
         console.error('❌ Ошибка загрузки данных пользователя:', error);
         // Используем пустые значения по умолчанию
@@ -2040,7 +2032,6 @@ function renderProductsList() {
     if (progressFill) {
         const progress = currentProducts.length > 0 ? (boughtProducts.length / currentProducts.length) * 100 : 0;
         progressFill.style.width = `${progress}%`;
->>>>>>> main
         progressFill.style.backgroundColor = progress === 100 ? '#10b981' : '#6366f1';
     }
 }
@@ -2199,13 +2190,11 @@ function renderMenuItems() {
                         <div class="meal-header">
                             <h5>${item.meal}</h5>
                             ${item.cookingTime ? `<span class="cooking-time">⏱️ ${item.cookingTime} мин</span>` : ''}
-<<<<<<< HEAD
     </div>
             </div>
                         <div class="meal-preview">
                             <p class="recipe-preview">${item.recipe.substring(0, 100)}${item.recipe.length > 100 ? '...' : ''}</p>
             </div>
->>>>>>> main
                         ${allProductsBought ? `
                             <button class="btn btn-primary btn-sm start-cooking" data-day="${day}" data-meal="${item.meal}">
                                 🍳 Начать готовить
